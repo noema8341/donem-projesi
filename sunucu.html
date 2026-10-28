@@ -216,8 +216,8 @@ details[open] summary{margin-bottom:10px}
     {id:'oybirligi', name:'Kimse itiraz etmedi', cls:'c1', color:'var(--c1)', satir:['Kimse itiraz', 'etmedi']},
     {id:'tek-itirazci', name:'Bir üye itiraz etti', cls:'c2', color:'var(--c2)', satir:['Bir üye itiraz', 'etti']}
   ];
-  // positions in the meeting: the fair decisions always stand on 3, 7 and 10; the dissenter starts at 5
-  const ADIL = [3, 7, 10], B1 = [1, 2, 4], B2 = [5, 6, 8, 9, 11, 12];
+  // positions in the meeting: the fair decisions always stand on 3 and 7; the dissenter starts at 5
+  const N = 10, ADIL = [3, 7], B1 = [1, 2, 4], B2 = [5, 6, 8, 9, 10];
   const $ = id => document.getElementById(id);
   const call = (fn, ...args) => new Promise((res, rej) =>
     google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn](...args));
@@ -247,57 +247,57 @@ details[open] summary{margin-bottom:10px}
       const gz = g.filter(r => r.gizli != null);
       return {...c, n: g.length, b1, b2, fark: b1 == null || b2 == null ? null : b2 - b1, adil: per(ADIL),
         sordu: g.length ? g.filter(r => r.gerekce > 0).length / g.length : null,
-        gizli: gz.length ? mean(gz.map(r => r.gizli / 6)) : null, nGizli: gz.length,
-        yer: Array.from({length: 12}, (_, i) => { const v = g.map(r => r[alan][i]).filter(x => x != null); return {v: mean(v), n: v.length}; })};
+        gizli: gz.length ? mean(gz.map(r => r.gizli / 5)) : null, nGizli: gz.length,
+        yer: Array.from({length: N}, (_, i) => { const v = g.map(r => r[alan][i]).filter(x => x != null); return {v: mean(v), n: v.length}; })};
     });
   }
 
-  /* ---------- the figure: approval at each of the 12 decisions ---------- */
+  /* ---------- the figure: approval at each decision ---------- */
   const W = 1000, H = 430, M = {l:64, r:200, t:44, b:66};
-  const X = p => M.l + (p - 1) * (W - M.l - M.r) / 11;
+  const X = p => M.l + (p - 1) * (W - M.l - M.r) / (N - 1);
   const Y = v => M.t + (1 - v) * (H - M.t - M.b);
   function drawPlot(gs){
     const plot = $('plot');
     const any = gs.some(g => g.n > 0);
-    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="12 karar boyunca iki koşulda onaylayanların yüzdesi">`;
-    s += `<rect x="${(X(4) + X(5)) / 2}" y="${M.t}" width="${X(12) + 24 - (X(4) + X(5)) / 2}" height="${H - M.t - M.b}" fill="var(--band)"/>`;
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${N} karar boyunca iki koşulda onaylayanların yüzdesi">`;
+    s += `<rect x="${(X(4) + X(5)) / 2}" y="${M.t}" width="${X(N) + 24 - (X(4) + X(5)) / 2}" height="${H - M.t - M.b}" fill="var(--band)"/>`;
     [0, .25, .5, .75, 1].forEach(v => {
-      s += `<line x1="${M.l - 8}" x2="${X(12) + 24}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)" stroke-width="1"/>`;
+      s += `<line x1="${M.l - 8}" x2="${X(N) + 24}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)" stroke-width="1"/>`;
       s += `<text x="${M.l - 14}" y="${Y(v) + 5}" text-anchor="end">%${v * 100}</text>`;
     });
     const sinir = (X(4) + X(5)) / 2;
     s += `<line x1="${sinir}" x2="${sinir}" y1="${M.t - 6}" y2="${H - M.b}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 5"/>`;
     s += `<text x="${(M.l + sinir) / 2}" y="${M.t - 18}" text-anchor="middle">1. blok · iki koşulda aynı</text>`;
-    s += `<text x="${(sinir + X(12)) / 2}" y="${M.t - 18}" text-anchor="middle">2. blok · itirazcı burada başlar</text>`;
-    for (let p = 1; p <= 12; p++){
+    s += `<text x="${(sinir + X(N)) / 2}" y="${M.t - 18}" text-anchor="middle">2. blok · itirazcı burada başlar</text>`;
+    for (let p = 1; p <= N; p++){
       s += `<text x="${X(p)}" y="${H - M.b + 26}" text-anchor="middle" style="fill:var(--fg);font-weight:600">${p}</text>`;
       if (ADIL.includes(p)) s += `<text x="${X(p)}" y="${H - M.b + 46}" text-anchor="middle">adil</text>`;
     }
-    s += `<text x="${(M.l + X(12)) / 2}" y="${H - 2}" text-anchor="middle">Karar sırası</text>`;
-    if (!any) s += `<text x="${(M.l + X(12)) / 2}" y="${Y(.5)}" text-anchor="middle" class="lbl">Henüz veri yok</text>`;
+    s += `<text x="${(M.l + X(N)) / 2}" y="${H - 2}" text-anchor="middle">Karar sırası</text>`;
+    if (!any) s += `<text x="${(M.l + X(N)) / 2}" y="${Y(.5)}" text-anchor="middle" class="lbl">Henüz veri yok</text>`;
     const ends = [];
     gs.forEach(g => {
       // the line joins the unfair decisions; fair ones are hollow points beside it
       const seq = [...B1, ...B2].filter(p => g.yer[p - 1].v != null);
       if (seq.length > 1) s += `<path d="${seq.map((p, i) => (i ? 'L' : 'M') + X(p) + ' ' + Y(g.yer[p - 1].v)).join(' ')}" fill="none" stroke="${g.color}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
-      for (let p = 1; p <= 12; p++){
+      for (let p = 1; p <= N; p++){
         const d = g.yer[p - 1]; if (d.v == null) continue;
         const fair = ADIL.includes(p);
         s += `<circle cx="${X(p)}" cy="${Y(d.v)}" r="6.5" fill="${fair ? 'var(--surface)' : g.color}" stroke="${fair ? g.color : 'var(--surface)'}" stroke-width="${fair ? 3 : 2}"/>`;
       }
-      const last = g.yer[11].v != null ? g.yer[11].v : (seq.length ? g.yer[seq[seq.length - 1] - 1].v : null);
+      const last = g.yer[N - 1].v != null ? g.yer[N - 1].v : (seq.length ? g.yer[seq[seq.length - 1] - 1].v : null);
       if (last != null) ends.push({g, y: Y(last), v: last});
     });
     // direct labels at the right end, pushed apart when the lines finish close together
     ends.sort((a, b) => a.y - b.y);
     for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 44) ends[i].y = ends[i - 1].y + 44;
     ends.forEach(e => {
-      s += `<line x1="${X(12) + 30}" x2="${X(12) + 48}" y1="${e.y}" y2="${e.y}" stroke="${e.g.color}" stroke-width="4" stroke-linecap="round"/>`;
-      s += `<text x="${X(12) + 56}" y="${e.y - 4}" class="lbl">${e.g.satir[0]}</text>`;
-      s += `<text x="${X(12) + 56}" y="${e.y + 16}">${e.g.satir[1]} · <tspan class="val">${pct(e.v)}</tspan></text>`;
+      s += `<line x1="${X(N) + 30}" x2="${X(N) + 48}" y1="${e.y}" y2="${e.y}" stroke="${e.g.color}" stroke-width="4" stroke-linecap="round"/>`;
+      s += `<text x="${X(N) + 56}" y="${e.y - 4}" class="lbl">${e.g.satir[0]}</text>`;
+      s += `<text x="${X(N) + 56}" y="${e.y + 16}">${e.g.satir[1]} · <tspan class="val">${pct(e.v)}</tspan></text>`;
     });
     // hover targets larger than the points
-    gs.forEach((g, gi) => { for (let p = 1; p <= 12; p++){ const d = g.yer[p - 1]; if (d.v == null) continue;
+    gs.forEach((g, gi) => { for (let p = 1; p <= N; p++){ const d = g.yer[p - 1]; if (d.v == null) continue;
       s += `<circle class="hit" data-g="${gi}" data-p="${p}" cx="${X(p)}" cy="${Y(d.v)}" r="18" fill="transparent"/>`; } });
     s += '</svg><div class="tip" id="tip" hidden></div>';
     plot.innerHTML = s;
@@ -342,7 +342,7 @@ details[open] summary{margin-bottom:10px}
       line('En az bir kez gerekçe isteyenler', 'sordu', pct) +
       line('Gizli oyda 2. bloğu onaylayanlar', 'gizli', (v, g) => v == null ? '–' : `${pct(v)} <small>${g.nGizli} kişi</small>`) +
       line('Kişi sayısı', 'n', v => String(v));
-    $('perDecision').innerHTML = Array.from({length: 12}, (_, i) => {
+    $('perDecision').innerHTML = Array.from({length: N}, (_, i) => {
       const p = i + 1, tur = ADIL.includes(p) ? 'Adil' : `Haksız · ${p <= 4 ? '1' : '2'}. blok`;
       return `<tr><th scope="row">${p}</th><td>${tur}</td>${gs.map(g => `<td class="num">${pct(g.yer[i].v)} <small>${g.yer[i].n} kişi</small></td>`).join('')}</tr>`;
     }).join('');
