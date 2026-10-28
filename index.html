@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
 <title>Dönem projesi toplantısı</title>
 <script>
 // Outside Google this page reaches the Apps Script web app with plain requests that carry no Google cookies,
@@ -12,10 +13,11 @@
   const q = new URLSearchParams(location.search);
   const yerel = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
   if (yerel && q.get('hiz')) window.__hiz = Number(q.get('hiz'));   // speeds the flow up, only when tested on this computer
+  const post = govde => fetch(API, {method: 'POST', credentials: 'omit', headers: {'Content-Type': 'text/plain;charset=utf-8'}, body: JSON.stringify(govde)});
   const istek = (fn, args) => {
     if (fn === 'kosulAl') return fetch(API + '?api=kosul' + (args[0] ? '&test=1' : ''), {credentials: 'omit', cache: 'no-store'});
-    if (fn === 'kaydet') return fetch(API, {method: 'POST', credentials: 'omit', headers: {'Content-Type': 'text/plain;charset=utf-8'},
-      body: JSON.stringify({api: 'kaydet', kayit: args[0], test: !!args[1]})});
+    if (fn === 'kaydet') return post({api: 'kaydet', kayit: args[0], test: !!args[1]});
+    if (fn === 'ozet' || fn === 'yeniOturum') return post({api: fn, anahtar: args[0], test: !!args[1]});
     return Promise.reject(new Error('bilinmeyen işlem: ' + fn));
   };
   const runner = (ok, fail) => new Proxy({}, {get(_, fn){
@@ -35,8 +37,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: one focused scene at a time — the stage name, one big sentence, the list it concerns, a countdown or choice buttons at the bottom.
-   Colour meaning: orange = the project lead and the lead's actions · blue = system information and your own role · red = the member whose task is at stake. */
+/* Layout: one focused scene at a time. The meeting itself is a group chat under a fixed header; votes are answered at the bottom.
+   Colour meaning: orange = the project lead · blue = system information and the participant · green / red = approve / reject. */
 :root{
   --bg:#F4F5F9; --surface:#FFFFFF; --surface-2:#ECEEF4; --line:#D9DCE6;
   --fg:#161925; --muted:#596074; --accent:#3346C8; --accent-fg:#FFFFFF; --accent-soft:#E4E8FC;
@@ -59,8 +61,9 @@ html,body{height:100%}
 body{margin:0; background:var(--bg); color:var(--fg); font-family:var(--font-body); font-size:17px; line-height:1.45}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-button{font:inherit; color:inherit; cursor:pointer}
-button:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
+button,textarea,input{font:inherit; color:inherit}
+button{cursor:pointer}
+button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
 .app{height:100%; max-width:520px; margin:0 auto; display:flex; flex-direction:column}
 .gutter{padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px))}
 
@@ -73,6 +76,8 @@ button:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
 .stage{font-size:13px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--accent)}
 .stage span{color:var(--muted)}
 .rlabel{font-size:12.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
+.facts{margin:0; padding-left:1.2em; display:grid; gap:8px; color:var(--muted)}
+.facts li::marker{color:var(--accent)}
 
 /* bottom area */
 .actions{padding-block:10px 12px; display:grid; gap:10px; border-top:1px solid var(--line)}
@@ -89,18 +94,14 @@ button:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
 .btns{display:grid; gap:10px}
 .btns.two{grid-template-columns:repeat(2, minmax(0,1fr))}
 .btns.three{grid-template-columns:repeat(3, minmax(0,1fr))}
+.btns.five{grid-template-columns:repeat(5, minmax(0,1fr))}
 .btns button{min-height:56px; border-radius:14px; border:0; font-weight:700; font-size:17px; padding:10px 12px}
 .btns.three button{font-size:15.5px; padding:8px 6px; line-height:1.2}
 .btns .ok{background:var(--ok-soft); color:var(--ok)}
 .btns .no{background:var(--no-soft); color:var(--no)}
 .btns .ask{background:var(--accent-soft); color:var(--accent)}
 .btns .plain{background:var(--surface); border:1px solid var(--line)}
-
-.scale{display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:8px}
-.scale button{border:1px solid var(--line); background:var(--surface); border-radius:12px; min-height:58px; font-size:20px; font-weight:700}
-.scale button[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:var(--accent-fg)}
-.scale-ends{display:flex; justify-content:space-between; font-size:13.5px; color:var(--muted); gap:12px}
-.statement{font-family:var(--font-display); font-size:23px; line-height:1.25; font-weight:600; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:18px}
+.btns .primary{background:var(--accent); color:var(--accent-fg)}
 
 /* connection seats */
 .seats{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:16px 10px; width:100%; max-width:320px}
@@ -110,84 +111,96 @@ button:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
 .seat.me .ring{border-width:3px}
 .status{font-weight:600; font-size:16px; color:var(--muted); min-height:3em; max-width:32ch}
 
-/* role boxes */
-.roles{display:grid; gap:10px; width:100%; text-align:left}
+/* project and rules */
 .rgroup{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 16px; display:grid; gap:4px}
 .rgroup.lead{border-color:var(--lead); background:var(--lead-soft)}
 .rgroup.lead .rlabel{color:var(--lead)}
 .rgroup.memb{border-color:var(--accent); background:var(--accent-soft)}
 .rgroup.memb .rlabel{color:var(--accent)}
-.rnames{font-size:17px; line-height:1.6}
-.myrole{border:2px solid var(--accent); background:var(--accent-soft); border-radius:16px; padding:16px; display:grid; gap:4px}
-.myrole .rlabel{color:var(--accent)}
-.rval{font-family:var(--font-display); font-size:24px; font-weight:700}
-.chips{display:flex; flex-wrap:wrap; gap:6px; margin-block:4px 6px}
-.chip{font-size:13.5px; font-weight:700; border-radius:999px; padding:4px 10px; background:var(--surface); border:1px solid var(--line)}
-.rgroup.lead .chip{border-color:var(--lead); color:var(--lead)}
-.chip.me{background:var(--accent); color:var(--accent-fg); border-color:var(--accent)}
+.rnames{font-family:var(--font-display); font-size:21px; font-weight:700}
 .rules{margin:4px 0 0; padding-left:1.3em; display:grid; gap:8px}
 .rules li::marker{color:var(--accent); font-weight:700}
-
-/* announcements: blue = information, orange = the lead's action */
-.announce{background:var(--accent-soft); border-radius:14px; padding:12px 14px; display:grid; gap:4px; font-size:15.5px; text-align:left; width:100%}
-.announce .rlabel{color:var(--accent)}
-.announce.lead{background:var(--lead-soft)}
-.announce.lead .rlabel{color:var(--lead)}
-.notice{background:var(--lead-soft); border-radius:18px; padding:18px; display:grid; gap:8px; text-align:left; width:100%}
-.notice .rlabel{color:var(--lead)}
-.notice .big{font-size:23px}
-.notice .sub{color:var(--fg)}
-
-/* people list */
 .list{display:grid; gap:8px; margin:0; padding:0; list-style:none}
 .list li{display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:11px 14px; min-width:0}
 .list li.me{border-color:var(--accent); border-width:2px}
-.list li.lead{border-color:var(--lead); background:var(--lead-soft)}
-.list li.target{border-color:var(--no); border-width:2px; background:var(--no-soft)}
-.list li.changed{border-color:var(--muted); border-style:dashed}
-.list .who{font-weight:700; min-width:96px}
+.list .who{font-weight:700; min-width:92px}
 .list .what{flex:1; min-width:0; font-size:15.5px; overflow-wrap:anywhere}
-.list .what.dim{color:var(--muted)}
-.list .what.rolling{color:var(--muted); font-weight:600}
-.list .lead-role{color:var(--lead); font-weight:700}
-.list .col{flex:1; min-width:0; display:grid; gap:2px}
-.list .col .who{min-width:0}
-.list .col .what{font-size:14.5px; color:var(--muted); line-height:1.35}
-.list li.me .col .what, .list li.target .col .what, .list li.lead .col .what{color:var(--fg)}
-.list .to{color:var(--no); font-weight:700}
-.list .idle-txt{color:var(--muted); font-style:italic}
-.st{font-size:13.5px; font-weight:700; border-radius:999px; padding:4px 10px; white-space:nowrap}
-.st:empty{display:none}
-.st.wait{color:var(--muted)}
-.st.think{color:var(--accent); background:var(--accent-soft)}
-.st.ok{color:var(--ok); background:var(--ok-soft)} .st.no{color:var(--no); background:var(--no-soft)} .st.ask{color:var(--accent); background:var(--accent-soft)}
+.announce{background:var(--accent-soft); border-radius:14px; padding:12px 14px; display:grid; gap:4px; font-size:15.5px; text-align:left; width:100%}
+.announce .rlabel{color:var(--accent)}
 
-/* countdown */
-.slot{display:grid; gap:10px}
-.slot:empty{display:none}
-.clock{display:flex; align-items:center; gap:14px; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:10px 14px}
-.dial{--p:100; width:54px; height:54px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center;
-  background:conic-gradient(var(--accent) calc(var(--p) * 1%), var(--surface-2) 0)}
-.dial span{width:42px; height:42px; border-radius:50%; background:var(--surface); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:17px; font-variant-numeric:tabular-nums}
-.clock.urgent .dial{background:conic-gradient(var(--no) calc(var(--p) * 1%), var(--surface-2) 0)}
-.clock.urgent .dial span{color:var(--no)}
-.clock.paused .dial{background:var(--surface-2)}
-.clock .lbl{font-weight:600; min-width:0}
-.why{background:var(--lead-soft); border-radius:16px; padding:14px 16px; display:grid; gap:6px}
-.why .wl{font-size:13px; font-weight:700; color:var(--lead)}
-.why .txt{font-size:18px}
-.typing{display:inline-flex; gap:5px; align-items:center}
+/* the meeting: a group chat under a fixed header */
+.scene.meet{gap:0; padding-top:0}
+.mhead{position:sticky; top:0; z-index:2; background:var(--bg); padding-block:14px 10px; display:grid; gap:4px; border-bottom:1px solid var(--line)}
+.roster{font-size:13.5px; color:var(--muted); line-height:1.4}
+.roster b{color:var(--lead); font-weight:700}
+.roster em{font-style:normal; color:var(--accent); font-weight:700}
+.chat{display:flex; flex-direction:column; gap:10px; padding-block:14px 8px}
+.sys{align-self:center; text-align:center; font-size:13.5px; color:var(--muted); font-weight:600; max-width:44ch}
+.sys.head{margin-top:12px; font-size:12.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent)}
+.sys.res{color:var(--fg)}
+.msg{display:grid; gap:4px; max-width:88%; align-self:flex-start; justify-items:start}
+.msg .from{font-size:13.5px; font-weight:700; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.bubble{background:var(--surface); border:1px solid var(--line); border-radius:4px 16px 16px 16px; padding:9px 13px; font-size:16.5px; line-height:1.4; overflow-wrap:anywhere}
+.msg.lead .from{color:var(--lead)}
+.msg.lead .bubble{background:var(--lead-soft); border-color:transparent}
+.msg.me{align-self:flex-end; justify-items:end}
+.msg.me .from{color:var(--accent)}
+.msg.me .bubble{background:var(--accent-soft); border-color:transparent; border-radius:16px 4px 16px 16px}
+.pill{font-size:12.5px; font-weight:700; border-radius:999px; padding:2px 9px}
+.pill.ok{color:var(--ok); background:var(--ok-soft)}
+.pill.no{color:var(--no); background:var(--no-soft)}
+.pill.ask{color:var(--accent); background:var(--accent-soft)}
+.pill.wait{color:var(--muted); background:var(--surface-2)}
+.typing{display:inline-flex; gap:5px; align-items:center; min-height:1.4em}
 .typing i{width:8px; height:8px; border-radius:50%; background:var(--muted); opacity:.5; animation:blink 1s infinite}
 .typing i:nth-child(2){animation-delay:.15s} .typing i:nth-child(3){animation-delay:.3s}
 @keyframes blink{0%,100%{opacity:.25}50%{opacity:.9}}
 
-.sumtable{width:100%; border-collapse:collapse; font-size:15px; background:var(--surface); border:1px solid var(--line)}
-.sumtable th,.sumtable td{text-align:left; padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+/* countdown */
+.clock{display:flex; align-items:center; gap:14px; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:8px 14px}
+.dial{--p:100; width:48px; height:48px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center;
+  background:conic-gradient(var(--accent) calc(var(--p) * 1%), var(--surface-2) 0)}
+.dial span{width:38px; height:38px; border-radius:50%; background:var(--surface); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; font-variant-numeric:tabular-nums}
+.clock.urgent .dial{background:conic-gradient(var(--no) calc(var(--p) * 1%), var(--surface-2) 0)}
+.clock.urgent .dial span{color:var(--no)}
+.clock.paused .dial{background:var(--surface-2)}
+.clock .lbl{font-weight:600; min-width:0; font-size:15px}
+
+/* questionnaire */
+.items{display:grid; gap:22px}
+.item{display:grid; gap:8px}
+.item .q{font-weight:600}
+.lk{display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:5px}
+.lk button,.cnt button{border:1px solid var(--line); background:var(--surface); border-radius:10px; min-height:44px; font-weight:700; font-size:16px; padding:0}
+.ends{display:flex; justify-content:space-between; gap:12px; font-size:12.5px; color:var(--muted)}
+.cnt{display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:8px}
+.cnt button{min-height:52px; font-size:20px}
+.seg{display:flex; flex-wrap:wrap; gap:6px}
+.seg button{border:1px solid var(--line); background:var(--surface); border-radius:999px; padding:8px 14px; font-weight:600; font-size:15px; min-height:42px}
+.pair{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:6px}
+.pair button,.checks button{border:1px solid var(--line); background:var(--surface); border-radius:12px; min-height:46px; font-weight:600; font-size:15px; padding:8px 10px}
+.checks{display:grid; gap:8px}
+.checks button{text-align:left; padding:12px 14px}
+[aria-pressed="true"]{background:var(--accent)!important; border-color:var(--accent)!important; color:var(--accent-fg)!important}
+.row{display:grid; gap:8px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px 14px}
+.row .q{font-weight:600; font-size:15.5px}
+textarea{width:100%; min-height:110px; border:1px solid var(--line); border-radius:12px; background:var(--surface); padding:10px 12px; resize:vertical; font-size:16px}
+.range{display:grid; gap:6px}
+.range input{width:100%; accent-color:var(--accent); height:36px}
+.rangeval{font-family:var(--font-display); font-size:34px; font-weight:700; text-align:center; font-variant-numeric:tabular-nums}
+.rangeval.unset{color:var(--muted); font-size:18px; font-family:var(--font-body); font-weight:600}
+.step{display:grid; grid-template-columns:minmax(0,1fr) 44px 5ch 44px; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:8px 12px}
+.step button{width:44px; height:44px; border-radius:10px; border:1px solid var(--line); background:var(--surface-2); font-size:22px; font-weight:700; padding:0}
+.step output{text-align:center; font-weight:700; font-variant-numeric:tabular-nums}
+.total{font-weight:700; text-align:right}
+.total.ok{color:var(--ok)}
+
+.sumtable{width:100%; border-collapse:collapse; font-size:14.5px; background:var(--surface); border:1px solid var(--line)}
+.sumtable th,.sumtable td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top}
 .sumtable th{font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); background:var(--surface-2)}
-.sumtable td:last-child{font-weight:700}
 pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px; font-size:12.5px; overflow-x:auto; white-space:pre}
-.dept{font-weight:500; color:var(--muted)}
-.code{font-family:var(--font-display); font-size:30px; font-weight:700; letter-spacing:.14em; font-variant-numeric:tabular-nums; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:8px 18px}
+.code{font-family:var(--font-display); font-size:30px; font-weight:700; letter-spacing:.14em; font-variant-numeric:tabular-nums; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:8px 18px; align-self:flex-start}
+.center .code{align-self:center}
 .save{margin:0; font-size:14.5px; font-weight:600; color:var(--muted)}
 .save.ok{color:var(--ok)} .save.no{color:var(--no)}
 .enter{animation:rise .3s ease-out}
@@ -200,28 +213,99 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
 <script>
 (() => {
   const app = document.getElementById('app');
-  // served by Apps Script, google.script.run reaches the spreadsheet; anywhere else (the artifact preview) nothing is sent
+  // served by Apps Script (or by the copy hosted outside Google), google.script.run reaches the spreadsheet; in a plain preview nothing is sent
   const SERVER = !!(window.google && google.script && google.script.run);
-  let TEST = location.hash === '#test';      // under Apps Script: ?test=1, read in start()
+  let TEST = location.hash === '#test';      // ?test=1: records go to the test sheet and the end screen shows them
+  let KISA = false;                          // ?kisa=1: the class demonstration, with a short questionnaire
   const HIZ = window.__hiz || 1;             // only the local test harness speeds the flow up
   const ms = t => t / HIZ;
-  const DEPTS = [
-    {id:'muh', name:'Mühendislik'}, {id:'saglik', name:'Tıp ve Sağlık Bilimleri'}, {id:'sosyal', name:'Sosyal Bilimler'},
-    {id:'isl', name:'İşletme ve İktisat'}, {id:'hukuk', name:'Hukuk'}, {id:'ilet', name:'İletişim ve Sanat'}
-  ];
-  const TASK_POOL = ['Araştırma ve veri toplama', 'Proje raporunu yazma', 'Sunum slaytlarını hazırlama', 'Jüri sunumunu yapma'];
-  const YOUR_TASK = 'Katılım listesini tutmak';
-  const OTHERS = ['o1','o2','o3','o4'];
-  // the lead's answers when asked why: mention the department, never explain anything.
-  // [answer to the member who loses the task, answer to anyone else asking about it]
-  const REASONS = [
-    ['okuduğun bölümden kaynaklı yani ben bunu daha iyi yaparım', 'onun okuduğu bölümden kaynaklı yani ben bunu daha iyi yaparım'],
-    ['bölümün yüzünden yani bu iş pek senlik değil bende kalsın', 'bölümü yüzünden yani bu iş pek ona göre değil bende kalsın'],
-    ['senin bölümden biri bunu da düzgün tutamaz yani onu da ben yaparım', 'senin bölümden biri bunu da düzgün tutamaz yani onu da ben yaparım']
-  ];
-  // Turkish case endings after a numeral
-  const SUF = {1:{gen:'’in',dat:'’e',acc:'’i',abl:'’den'}, 2:{gen:'’nin',dat:'’ye',acc:'’yi',abl:'’den'}, 3:{gen:'’ün',dat:'’e',acc:'’ü',abl:'’ten'},
-               4:{gen:'’ün',dat:'’e',acc:'’ü',abl:'’ten'}, 5:{gen:'’in',dat:'’e',acc:'’i',abl:'’ten'}, 6:{gen:'’nın',dat:'’ya',acc:'’yı',abl:'’dan'}};
+  const SURE = 20;                           // seconds for each vote
+  const ILETISIM = '';                       // the researcher's contact line for the debriefing, added once the ethics approval is in
+
+  /* ---------- names ---------- */
+  // genitive and dative forms are written out: Turkish endings follow the name's last vowel
+  const AD = {
+    Ekin:['Ekin’in','Ekin’e'], Deniz:['Deniz’in','Deniz’e'], Umut:['Umut’un','Umut’a'], Evren:['Evren’in','Evren’e'],
+    Ece:['Ece’nin','Ece’ye'], Zeynep:['Zeynep’in','Zeynep’e'], Elif:['Elif’in','Elif’e'],
+    Mert:['Mert’in','Mert’e'], Can:['Can’ın','Can’a'], Emre:['Emre’nin','Emre’ye']
+  };
+  const ORTAK = ['Ekin','Deniz','Umut','Evren'];          // the lead and the dissenter: names that do not tell a gender
+  const UYE = ['Ece','Zeynep','Elif','Mert','Can','Emre'];
+  const KENDI = ['Ada','Arda','Baran','Defne','Duru','Efe','İpek','Kaan','Melis','Ozan','Selin','Yiğit'];
+  const kisi = ad => ({ad, gen: AD[ad][0], dat: AD[ad][1]});
+
+  /* ---------- the twelve decisions ---------- */
+  // hedef: the member the decision is about. It is never the dissenter (M) and never the participant, and it does not vote.
+  // metin: the lead's message · gerekce: the lead's answer to "Gerekçe iste" · itiraz: what the dissenter writes (block 2, unfair only)
+  // kisa: a short label beside the vote buttons and on the private-vote screen
+  const KARAR = {
+    K1:{blok:1, duzey:'hafif', adil:false, hedef:'B',
+      metin: n => `Haftalık toplantıyı çarşamba 08.00’e aldım. ${n.B.gen} o saatte dersi var biliyorum ama en verimli saat bu.`,
+      gerekce: 'En verimli saat bu, değiştirmeyelim.',
+      kisa: n => `Haftalık toplantının ${n.B.gen} dersi olan saate alınması`},
+    K2:{blok:1, duzey:'hafif', adil:false, hedef:'C',
+      metin: n => `Konu oylamasında ${n.C.gen} önerisi öndeydi ama ben anket konusunda karar kıldım. Uzatmayalım.`,
+      gerekce: 'Anket konusu daha mantıklı.',
+      kisa: n => `Konunun ${n.C.gen} önerisi yerine ${n.L.gen} tercihiyle seçilmesi`},
+    K3:{blok:1, duzey:'adil', adil:true, hedef:'B',
+      metin: n => `${n.B.gen} kaynakça işi fazla geldi, yarısını ben alayım.`,
+      gerekce: n => `${n.B.gen} yükü fazlaydı.`,
+      kisa: n => `${n.B.gen} kaynakça işinin yarısını ${n.L.gen} alması`},
+    K4:{blok:1, duzey:'hafif', adil:false, hedef:'A',
+      metin: n => `${n.A.gen} hazırladığı anket taslağındaki soruların sırasını değiştirdim. Haber vermedim ama böyle daha iyi.`,
+      gerekce: 'Böylesi daha iyi oldu.',
+      kisa: n => `${n.A.gen} anket taslağının ona sorulmadan değiştirilmesi`},
+    K5:{blok:2, duzey:'orta', adil:false, hedef:'A',
+      metin: n => `Hocanın puanlayacağı sunumu ${n.A.ad} yerine ben yapayım, daha hızlı olur.`,
+      gerekce: 'Daha hızlı olur, o kadar.',
+      itiraz: n => `Sunum ${n.A.dat} verilmişti. ‘Daha hızlı’ yeterli bir gerekçe değil.`,
+      kisa: n => `Sunumu ${n.A.ad} yerine ${n.L.gen} yapması`},
+    K6:{blok:2, duzey:'orta', adil:false, hedef:'B',
+      metin: n => `${n.B.gen} literatür özeti teslimini 3 gün öne çektim. Erken bitsin.`,
+      gerekce: 'Erken bitsin istiyorum.',
+      itiraz: n => `${n.B.dat} sormadan 3 gün kısaltmak olmaz. Eski tarih kalsın.`,
+      kisa: n => `${n.B.gen} teslim tarihinin 3 gün öne çekilmesi`},
+    K7:{blok:2, duzey:'adil', adil:true, hedef:'C',
+      metin: n => `${n.C.ad} bu hafta hasta. Veri girişlerinin yarısını ben yapayım.`,
+      gerekce: n => `${n.C.ad} hasta, yardım edeyim dedim.`,
+      kisa: n => `Hasta olan ${n.C.gen} veri girişlerinin yarısını ${n.L.gen} yapması`},
+    K8:{blok:2, duzey:'orta', adil:false, hedef:'C',
+      metin: n => `Hocayla görüşmeye ben gideceğim, ${n.C.ad} gelmesin. Kalabalık olmasın.`,
+      gerekce: 'Kalabalık olmasın dedim.',
+      itiraz: n => `${n.C.ad} kendi bölümünü anlatmak istemişti. Gelmesinde sakınca yok.`,
+      kisa: n => `${n.C.gen} hoca görüşmesine alınmaması`},
+    K9:{blok:2, duzey:'orta', adil:false, hedef:'B',
+      metin: n => `${n.B.gen} anket ödülleri için ödediği 150 TL’yi bütçeden ödemeyelim, küçük para.`,
+      gerekce: 'Küçük para, uzatmayalım.',
+      itiraz: n => `${n.B.ad} bunu ekip için ödedi. Bütçeden ödenmeli.`,
+      kisa: n => `${n.B.gen} ödediği 150 TL’nin bütçeden ödenmemesi`},
+    K10:{blok:2, duzey:'adil', adil:true, hedef:'A',
+      metin: n => `${n.A.gen} bu hafta iki sınavı var. Anket teslimini 2 gün erteleyelim.`,
+      gerekce: 'Sınavları var, iki gün sorun olmaz.',
+      kisa: n => `${n.A.gen} anket tesliminin 2 gün ertelenmesi`},
+    K11:{blok:2, duzey:'agir', adil:false, hedef:'C',
+      metin: n => `${n.C.gen} yaptığı veri analizini raporda benim bölümüm olarak göstereceğim. Toparlayan benim zaten.`,
+      gerekce: 'Toparlayan benim zaten.',
+      itiraz: n => `Analizi ${n.C.ad} yaptı. Raporda onun adıyla geçmeli.`,
+      kisa: n => `${n.C.gen} analizinin ${n.L.gen} bölümü olarak gösterilmesi`},
+    K12:{blok:2, duzey:'agir', adil:false, hedef:'A',
+      metin: n => `Akran değerlendirmede ${n.A.gen} puanını ben belirleyeceğim: 60/100. Ekip kararı olarak yazacağız.`,
+      gerekce: 'Öyle uygun gördüm.',
+      itiraz: n => `${n.A.gen} puanını tek kişi belirleyemez. Herkes kendi formunu doldurmalı.`,
+      kisa: n => `${n.A.gen} akran puanını ${n.L.gen} belirlemesi`}
+  };
+  const metinOf = (v, n) => typeof v === 'function' ? v(n) : v;
+  const GIZLI = ['K5','K6','K8','K9','K11','K12'];      // block 2, unfair: the decisions the dissenter rejects
+  const ONAY_YORUM = ['Tamam', 'olur', 'tamam 👍', 'Olur bence', 'ok', 'peki', 'uygun', 'tmm'];
+  const LIKERT_UC = ['Hiç katılmıyorum', 'Tamamen katılıyorum'];
+
+  // the order: levels keep their places, decisions of the same level are shuffled.
+  // In block 1 the topic (K2) is chosen before the survey draft (K4) is touched.
+  function siraOlustur(){
+    const b1 = pick([['K1','K2','K4'], ['K2','K1','K4'], ['K2','K4','K1']]);
+    const orta = shuffle(['K5','K6','K8','K9']), agir = shuffle(['K11','K12']);
+    return [b1[0], b1[1], 'K3', b1[2], orta[0], orta[1], 'K7', orta[2], orta[3], 'K10', agir[0], agir[1]];
+  }
 
   let S, R, ui;           // S: this device's random setup · R: the record being collected
   let gen = 0;
@@ -232,26 +316,21 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
   const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
   const pick = a => a[Math.floor(Math.random() * a.length)];
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const now = () => (window.performance && performance.now) ? performance.now() : Date.now();
+  const reduce = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /* ---------- per-device setup: numbers, order, tasks and condition differ on every phone ---------- */
+  /* ---------- per-device setup ---------- */
   function setup(){
-    const leadSeat = pick([2,3,4]);
-    const youSeat = pick([1,2,3,4,5,6].filter(s => s !== leadSeat));
-    const otherSeats = [1,2,3,4,5,6].filter(s => s !== leadSeat && s !== youSeat);
-    const seat = {lead:leadSeat, you:youSeat};
-    OTHERS.forEach((o, i) => seat[o] = otherSeats[i]);
-    const tasks = shuffle(TASK_POOL);
-    const task = {you:YOUR_TASK}; OTHERS.forEach((o, i) => task[o] = tasks[i]);
-    const order = shuffle(OTHERS).concat('you');          // order of handing out roles = order of voting
-    // the server hands out conditions in turn (kosulAl); this random one stays only when it does not answer
-    const condition = window.__kosul || (Math.random() < 0.5 ? 'oybirligi' : 'tek-itirazci');   // __kosul: only set by the local test harness
-    const d1 = pick(OTHERS), d2 = pick(OTHERS.filter(o => o !== d1));
-    // the dissenter never loses a task, so a rejection always reads as principle, not self-interest
-    const dissenter = pick(OTHERS.filter(o => o !== d1 && o !== d2));
-    S = {seat, task, current:{...task}, order, condition, d1, d2, dissenter, leadTasks:[], dept:{}};
-    R = {kayit_id: newCode(), baslangic: new Date().toISOString(), kosul: condition, kosul_kaynagi: 'yerel',
-         senin_numaran: youSeat, yurutucu_numarasi: leadSeat, bolum: null, memnuniyet: null, kararlar: [],
-         gizli_katilim: null, suphe: null};
+    const [lider, muhalif] = shuffle(ORTAK);
+    const [a, b, c] = shuffle(UYE);
+    // the server hands out conditions in shuffled blocks of four (kosulAl); this random one stays only when it does not answer
+    const kosul = window.__kosul || (Math.random() < 0.5 ? 'oybirligi' : 'tek-itirazci');   // __kosul: only set by the local test harness
+    S = {n:{L:kisi(lider), M:kisi(muhalif), A:kisi(a), B:kisi(b), C:kisi(c)}, ben:null, sira:siraOlustur(),
+         dizilim:shuffle(['A','B','C','M']), kosul};
+    R = {surum:2, kayit_id:newCode(), mod:KISA ? 'kisa' : 'tam', kosul, kosul_kaynagi:'yerel',
+         baslangic:new Date().toISOString(), bitis:null, takma_ad:null,
+         adlar:{lider, muhalif, A:a, B:b, C:c}, kararlar:[], gizli:null, kontrol:null, aracilar:null,
+         sorumluluk:null, nedenler:null, suphe:null, demografi:null};
   }
   // six characters a student can read out loud: no 0/O, 1/I/L, and no E (a sheet reads 4E73 as a number)
   function newCode(){
@@ -259,25 +338,8 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
     try { crypto.getRandomValues(a); } catch(e){ a.forEach((_, i) => a[i] = Math.random() * 1e9); }
     return Array.from(a, n => abc[n % abc.length]).join('');
   }
-  // everyone in the team comes from a different department; the participant's is the one they chose
-  function assignDepts(own){
-    const rest = shuffle(DEPTS.map(d => d.name).filter(n => n !== own));
-    S.dept = {you: own, lead: rest[0]};
-    OTHERS.forEach((o, i) => S.dept[o] = rest[i + 1]);
-  }
-  const nm = id => id === 'lead' ? `Katılımcı ${S.seat.lead}` : id === 'you' ? `Katılımcı ${S.seat.you} (Sen)` : `Katılımcı ${S.seat[id]}`;
-  const short = id => id === 'you' ? 'Sen' : nm(id);
-  const idAt = n => n === S.seat.lead ? 'lead' : n === S.seat.you ? 'you' : OTHERS.find(o => S.seat[o] === n);
-  // the name with the department beside it, wherever the team is listed
-  const nmd = id => `${id === 'lead' ? `Katılımcı ${S.seat.lead}` : nm(id)} <span class="dept">· ${esc(S.dept[id] || '')}</span>`;
-  const form = (id, k) => {
-    if (id === 'you') return {gen:'senin', dat:`Katılımcı ${S.seat.you}${SUF[S.seat.you].dat} (sana)`, acc:`Katılımcı ${S.seat.you}${SUF[S.seat.you].acc} (seni)`, abl:'senden'}[k];
-    const n = id === 'lead' ? S.seat.lead : S.seat[id];
-    return `Katılımcı ${n}${SUF[n][k]}`;
-  };
-  const LEAD = () => `Proje yürütücüsü (Katılımcı ${S.seat.lead})`;
 
-  /* ---------- frame ---------- */
+  /* ---------- frame and controls ---------- */
   function frame(){
     app.innerHTML = '';
     const scene = el('main','scene gutter enter'); scene.setAttribute('aria-live','polite');
@@ -288,7 +350,7 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
       rs.onclick = () => { gen++; intro().catch(() => {}); };
       app.appendChild(rs);
     }
-    ui = {scene, actions};
+    ui = {scene, actions, chat:null};
   }
   function newScene(cls){ ui.scene.className = 'scene gutter enter ' + (cls||''); ui.scene.innerHTML=''; ui.actions.innerHTML=''; ui.scene.scrollTop = 0; return ui.scene; }
   const stage = (name, extra) => `<span class="stage">${name}${extra ? ` <span>· ${extra}</span>` : ''}</span>`;
@@ -297,12 +359,12 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
     return new Promise(res => {
       ui.actions.innerHTML = '';
       if (msg) ui.actions.appendChild(el('div','hint', msg));
-      const w = el('div','btns' + (cols === 2 ? ' two' : cols === 3 ? ' three' : ''));
-      opts.forEach(o => { const b = el('button', o.cls||'plain', o.label); b.id='opt-'+o.id; b.onclick = () => res(o); w.appendChild(b); });
+      const w = el('div','btns' + ({2:' two', 3:' three', 5:' five'}[cols] || ''));
+      opts.forEach(o => { const b = el('button', o.cls||'plain', o.label); b.id = 'opt-' + o.id; b.onclick = () => res(o); w.appendChild(b); });
       ui.actions.appendChild(w);
     });
   }
-  // no "continue" buttons: a countdown that moves on by itself
+  // no "continue" buttons while the group is together: a countdown that moves on by itself
   function next(secs = 15){
     return new Promise(res => {
       ui.actions.innerHTML = '';
@@ -315,25 +377,17 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
       setTimeout(tick, ms(1000));
     });
   }
-  async function upNext(name, title, desc, secs){
-    const s = newScene('center');
-    s.innerHTML = `${stage(name)}<span class="rlabel" style="color:var(--accent)">Sırada</span><h2 class="big">${title}</h2><p class="sub">${desc}</p>`;
-    await next(secs || 10);
-  }
-  function scaleQ({name, tag, title, statement, lo, hi, cta}){
-    return new Promise(res => {
-      const s = newScene();
-      s.innerHTML = `${stage(name)}${tag ? `<span class="tag">${tag}</span>` : ''}<h2 class="big">${title}</h2><div class="statement">${statement}</div>`;
-      const sc = el('div','scale'); let val = null;
-      const go = el('button','primary', cta); go.disabled = true; go.id = 'scale-go';
-      for (let i = 1; i <= 5; i++){
-        const b = el('button', null, String(i)); b.id='scale-'+i; b.setAttribute('aria-pressed','false');
-        b.onclick = () => { val = i; sc.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true':'false')); go.disabled = false; };
-        sc.appendChild(b);
-      }
-      s.append(sc, el('div','scale-ends', `<span>1 · ${lo}</span><span>${hi} · 5</span>`));
-      ui.actions.appendChild(go); go.onclick = () => res(val);
-    });
+  function clockEl(secs){
+    const c = el('div','clock', `<div class="dial" style="--p:100"><span>${secs}</span></div><span class="lbl"></span>`);
+    let left = 0, id = null; const g0 = gen;
+    const dial = c.querySelector('.dial'), num = c.querySelector('.dial span'), lbl = c.querySelector('.lbl');
+    const draw = () => { num.textContent = String(Math.max(left, 0)); dial.style.setProperty('--p', String(left / secs * 100)); c.classList.toggle('urgent', left <= 5 && !c.classList.contains('paused')); };
+    return {node:c,
+      start(label, onEnd){ this.stop(); left = secs; c.classList.remove('paused'); lbl.textContent = label; draw();
+        const tick = () => { if (g0 !== gen) return; left--; draw(); if (left <= 0){ id = null; onEnd && onEnd(); } else id = setTimeout(tick, ms(1000)); };
+        id = setTimeout(tick, ms(1000)); },
+      stop(){ if (id) clearTimeout(id); id = null; }
+    };
   }
 
   /* ---------- opening ---------- */
@@ -341,17 +395,27 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
     setup(); frame();
     const s = newScene();
     s.innerHTML = `${TEST ? '<span class="tag">Test sürümü</span>' : ''}
-      <h1 class="big">Dönem projesi toplantısı</h1>
-      <p class="sub">Bu toplantıya <strong>6 katılımcı</strong> katılacak. Roller rastgele belirlenecek: <strong>1 proje yürütücüsü</strong> ve <strong>5 proje üyesi</strong>.</p>
-      <p class="sub"><strong>Rolün belirlendikten sonra</strong> sana o role ait kurallar gösterilecek.</p>
-      <p class="sub">İsim istenmez, herkes yalnızca numarası ve bölümüyle görünür.</p>
-      <p class="sub">Katılım gönüllüdür. İstediğin an sayfayı kapatıp bırakabilirsin.</p>
-      <div class="announce"><span class="rlabel">Önemli</span><span>Ekranını kimseyle paylaşma ve etkinlik bitene kadar yanındakilerle konuşma.</span></div>`;
-    await buttons([{id:'next', label:'Bağlan', cls:'primary'}]);
-    const assigned = serverCondition();
-    await askDept();
-    await assigned;
-    await connecting();
+      <h1 class="big">Çevrimiçi proje ekibi çalışması</h1>
+      <p class="sub">Bu çalışmada <strong>6 kişilik bir öğrenci proje ekibinde</strong> kısa bir çevrimiçi toplantıya katılacaksın. Toplantıda proje yürütücüsünün kararlarını oylayacak, sonra birkaç soruyu cevaplayacaksın. Toplam süre yaklaşık <strong>${KISA ? 10 : 15} dakika</strong>.</p>
+      <ul class="facts">
+        <li>Katılım gönüllüdür. İstediğin an sayfayı kapatıp bırakabilirsin.</li>
+        <li>Adın ya da iletişim bilgin istenmez. Cevapların rastgele bir kodla kaydedilir.</li>
+        <li>Çalışmanın bazı ayrıntıları başta açıklanmayacak. Sonunda hepsi açıklanacak.</li>
+      </ul>
+      <div class="announce"><span class="rlabel">Önemli</span><span>Ekranını kimseyle paylaşma ve çalışma bitene kadar yanındakilerle konuşma.</span></div>`;
+    const c = await buttons([{id:'katil', label:'Okudum, katılmak istiyorum', cls:'primary'}, {id:'katilma', label:'Katılmak istemiyorum'}]);
+    if (c.id === 'katilma'){
+      newScene('center').innerHTML = '<h2 class="big">Teşekkürler</h2><p class="sub">Katılmamayı seçtin. Hiçbir cevap kaydedilmedi. Sayfayı kapatabilirsin.</p>';
+      return;
+    }
+    const atandi = serverCondition();
+    await adSec();
+    await baglanti();
+    await atandi;
+    await kurallar();
+    await toplanti();
+    await anket();
+    bitir();
   }
 
   // asks the server for this phone's condition; waits at most 5 s, otherwise the random one from setup() stays
@@ -359,10 +423,10 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
     if (!SERVER || window.__kosul) return Promise.resolve();
     return new Promise(res => {
       const g0 = gen;
-      const t = setTimeout(res, 5000);
+      const t = setTimeout(res, ms(5000));
       google.script.run
         .withSuccessHandler(r => {
-          if (g0 === gen && r && (r.kosul === 'oybirligi' || r.kosul === 'tek-itirazci')){ S.condition = R.kosul = r.kosul; R.kosul_kaynagi = 'sunucu'; }
+          if (g0 === gen && r && (r.kosul === 'oybirligi' || r.kosul === 'tek-itirazci')){ S.kosul = R.kosul = r.kosul; R.kosul_kaynagi = 'sunucu'; }
           clearTimeout(t); res();
         })
         .withFailureHandler(() => { clearTimeout(t); res(); })
@@ -370,450 +434,392 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
     });
   }
 
-  // asked once, before anything else; shown beside the participant's number in every team list
-  async function askDept(){
+  async function adSec(){
     const s = newScene();
-    s.innerHTML = `${stage('Bölüm')}<h2 class="big">Hangi bölümde okuyorsun?</h2>
-      <p class="sub">Bağlanmadan önce bölümünü seç. Ekipte numaranın yanında bölümün görünecek.</p>`;
-    const d = await buttons(DEPTS.map(x => ({id:x.id, label:x.name})), null, 2);
-    R.bolum = d.label;
-    assignDepts(d.label);
+    s.innerHTML = `${stage('Takma ad')}<h2 class="big">Ekipte görünecek adını seç</h2>
+      <p class="sub">Gerçek adını kullanma. Toplantıda herkes seçtiği adla görünür; oyların da bu adla görünecek.</p>`;
+    const o = await buttons(KENDI.map(a => ({id:a, label:a})), null, 3);
+    S.ben = R.takma_ad = o.id;
   }
 
-  async function connecting(){
+  async function baglanti(){
+    const n = S.n, gelen = shuffle(['L','A','B','C','M']);
     const s = newScene('center');
-    s.innerHTML = `${stage('Bağlantı')}<h2 class="big">Ekip oluşturuluyor</h2><p class="sub">Katılımcılar sırayla bağlanıyor. Sayfayı kapatma.</p>
-      <div class="seats">${[1,2,3,4,5,6].map(i => `<div class="seat" id="seat${i}"><span class="ring">${i}</span><span>${i === S.seat.you ? 'Sen' : 'Katılımcı ' + i}</span></div>`).join('')}</div>
+    s.innerHTML = `${stage('Bağlantı')}<h2 class="big">Ekip oluşturuluyor</h2><p class="sub">Katılımcılar bağlanıyor. Sayfayı kapatma.</p>
+      <div class="seats">${['ben', ...gelen].map(k => `<div class="seat${k === 'ben' ? ' me' : ''}" id="seat-${k}"><span class="ring">${k === 'ben' ? esc(S.ben[0]) : n[k].ad[0]}</span><span>${k === 'ben' ? `${esc(S.ben)} (Sen)` : n[k].ad}</span></div>`).join('')}</div>
       <div class="status" id="st"></div>`;
-    const st = s.querySelector('#st');
-    const on = (i, me) => { const e = document.getElementById('seat'+i); e.classList.add('on'); if (me) e.classList.add('me'); };
-    const say = t => { st.textContent = t; };
-    const join = shuffle([1,2,3,4,5,6].filter(i => i !== S.seat.you));
-    join.slice(0, 3).forEach(i => on(i));
-    say('3 katılımcı bağlı. Sen bağlanıyorsun…');
-    await sleep(3200); on(S.seat.you, true); say(`Sen bağlandın: Katılımcı ${S.seat.you} · 4 / 6`);
-    await sleep(2200); say('Diğer katılımcılar bekleniyor · 4 / 6');
-    await sleep(4400); on(join[3]); say(`Katılımcı ${join[3]} bağlandı · 5 / 6`);
-    await sleep(3500); on(join[4]); say(`Katılımcı ${join[4]} bağlandı. Ekip tamamlandı · 6 / 6`);
-    await sleep(2400);
-
-    const s1 = newScene('center');
-    s1.innerHTML = `${stage('Yürütücü ve üyeler')}<h2 class="big">Sırada rol ataması var</h2>
-      <p class="sub">6 katılımcı arasından roller rastgele atanacak.</p>
-      <div class="roles">
-        <div class="rgroup lead"><span class="rlabel">1 kişi</span><span class="rnames">Proje yürütücüsü</span></div>
-        <div class="rgroup"><span class="rlabel">5 kişi</span><span class="rnames">Proje üyesi</span></div>
-      </div>
-      <p class="sub">Rolün belirlendikten sonra sana o role ait kurallar gösterilecek.</p>`;
-    await next(12);
-
-    // roles are revealed seat by seat
-    const s2 = newScene();
-    s2.innerHTML = `${stage('Yürütücü ve üyeler')}<h2 class="big">Roller rastgele atanıyor</h2>`;
-    const note = el('div','announce'); const ul = el('ul','list'); const Rw = {};
-    s2.append(note, ul);
-    const tell = (label, html, lead) => { note.className = 'announce enter' + (lead ? ' lead' : ''); note.innerHTML = `<span class="rlabel">${label}</span><span>${html}</span>`; };
-    [1,2,3,4,5,6].forEach(i => {
-      const me = i === S.seat.you;
-      const li = el('li', me ? 'me' : '', `<span class="who">${me ? `Katılımcı ${i} (Sen)` : 'Katılımcı ' + i}</span><span class="what dim">Bekliyor</span>`);
-      Rw[i] = {li, what: li.querySelector('.what')}; ul.appendChild(li);
-    });
-    hint('Roller belirleniyor…');
-    const roll = async (i, final, ms) => {
-      const w = Rw[i].what; w.classList.remove('dim'); w.classList.add('rolling');
-      const opts = ['Proje yürütücüsü','Proje üyesi']; let k = 0; const end = Date.now() + ms / HIZ;
-      while (Date.now() < end){ w.textContent = opts[k++ % 2]; await sleep(170); }
-      w.classList.remove('rolling'); w.textContent = final;
-      if (final === 'Proje yürütücüsü'){ Rw[i].li.classList.add('lead'); w.innerHTML = '<span class="lead-role">Proje yürütücüsü</span>'; }
-    };
-    tell('Başlıyor', 'Roller katılımcı numarasına göre sırayla belirlenecek.');
-    await sleep(2600);
-    for (let i = 1; i < S.seat.lead; i++){
-      tell('Sırada', `<strong>Katılımcı ${i}${SUF[i].gen}</strong> rolü belirlenecek.`);
-      await sleep(2400);
-      await roll(i, 'Proje üyesi', 2600);
-      tell('Sonuç', `Katılımcı ${i}${i === S.seat.you ? ' (Sen)' : ''}: <strong>proje üyesi</strong>.`);
-      await sleep(2400);
-    }
-    const L = S.seat.lead;
-    tell('Sırada', `<strong>Katılımcı ${L}${SUF[L].gen}</strong> rolü belirlenecek.`);
-    await sleep(2400);
-    await roll(L, 'Proje yürütücüsü', 3600);
-    const rest = [1,2,3,4,5,6].filter(i => i > L);
-    const restTxt = rest.map(i => i === S.seat.you ? `Katılımcı ${i} (Sen)` : `Katılımcı ${i}`).join(', ');
-    tell('Uyarı', `<strong>Katılımcı ${L} proje yürütücüsü oldu.</strong> Ekipte yalnızca bir proje yürütücüsü olabilir. Bu yüzden geri kalan herkes (${restTxt}) <strong>proje üyesi</strong> olacak.`, true);
-    await sleep(6000);
-    for (const i of rest){ Rw[i].what.classList.remove('dim'); Rw[i].what.textContent = 'Proje üyesi'; await sleep(1300); }
-    tell('Tamamlandı', 'Bütün roller belirlendi: <strong>1 proje yürütücüsü</strong>, <strong>5 proje üyesi</strong>.');
-    hint('Roller belirlendi.');
-    await sleep(2600);
-
-    const members = [1,2,3,4,5,6].filter(i => i !== L);
-    const s3 = newScene();
-    s3.innerHTML = `${stage('Yürütücü ve üyeler')}<h2 class="big">Ekibin rolleri</h2>
-      <div class="roles">
-        <div class="rgroup lead"><span class="rlabel">Proje yürütücüsü</span><span class="rnames">${nmd('lead')}</span></div>
-        <div class="rgroup"><span class="rlabel">Proje üyeleri</span><span class="rnames">${members.map(i => i === S.seat.you ? `<strong>${nmd('you')}</strong>` : nmd(idAt(i))).join('<br>')}</span></div>
-      </div>
-      <div class="myrole"><span class="rlabel">Rolün</span><span class="rval">Proje üyesi</span></div>`;
-    await next(15);
-    await rules(members);
+    const on = k => document.getElementById('seat-' + k).classList.add('on');
+    const say = t => { s.querySelector('#st').textContent = t; };
+    on(gelen[0]); on(gelen[1]);
+    say('2 katılımcı bağlı. Sen bağlanıyorsun…');
+    await sleep(2600); on('ben'); say('Sen bağlandın · 3 / 6');
+    await sleep(3000); on(gelen[2]); say(`${n[gelen[2]].ad} bağlandı · 4 / 6`);
+    await sleep(3400); on(gelen[3]); say(`${n[gelen[3]].ad} bağlandı · 5 / 6`);
+    await sleep(2800); on(gelen[4]); say(`${n[gelen[4]].ad} bağlandı. Ekip tamamlandı · 6 / 6`);
+    await sleep(2200);
   }
 
-  async function rules(members){
+  const GOREV = {A:'Anket tasarımı ve sunum', B:'Literatür taraması ve kaynakça', C:'Veri girişi ve analiz', M:'Anket uygulaması ve toplantı notları'};
+  async function kurallar(){
+    const n = S.n;
     const s = newScene();
-    s.innerHTML = `${stage('Kurallar')}<h2 class="big">Roller ve kurallar</h2>
-      <div class="myrole"><span class="rlabel">Senin rolün</span><span class="rval">PROJE ÜYESİ</span></div>
-      <div class="rgroup lead"><span class="rlabel">Proje yürütücüsünün görevi</span>
-        <div class="chips"><span class="chip">Katılımcı ${S.seat.lead}</span></div>
-        <span>Proje için önceden belirlenmiş görevleri ekip üyelerine dağıtır ve kararları alır.</span></div>
-      <div class="rgroup memb"><span class="rlabel">Proje üyelerinin görevi</span>
-        <div class="chips">${members.map(i => i === S.seat.you ? `<span class="chip me">Katılımcı ${i} (Sen)</span>` : `<span class="chip">Katılımcı ${i}</span>`).join('')}</div>
-        <ol class="rules">
-          <li>Proje yürütücüsünün kararlarına <strong>Onayla</strong> ya da <strong>Reddet</strong> cevabı verir.</li>
-          <li>Bazı kararlarda <strong>gerekçesini sorabilir</strong>.</li>
-          <li>Oylar, proje yürütücüsünün görevleri dağıttığı sırayla verilir.</li>
-          <li>Her oy için 15 saniye süre vardır. Süre dolarsa oy sayılmaz.</li>
-        </ol></div>`;
-    await next(30);
-    await meeting();
-  }
-
-  /* ---------- pieces ---------- */
-  function peopleList(){
-    const ul = el('ul','list'); const rows = {};
-    S.order.forEach(m => {
-      const li = el('li', m === 'you' ? 'me' : '', `<span class="who">${nmd(m)}</span><span class="what dim"></span><span class="st wait"></span>`);
-      rows[m] = {li, what: li.querySelector('.what'), st: li.querySelector('.st')};
-      ul.appendChild(li);
-    });
-    return {ul, rows};
-  }
-  // the team's current project roles, the lead first, members in voting order
-  function teamTable(){
-    const ul = el('ul','list');
-    ul.appendChild(el('li','lead', `<div class="col"><span class="who">${nmd('lead')}</span><span class="what"><span class="lead-role">Proje yürütücüsü</span>${S.leadTasks.map(t => '<br>' + esc(t)).join('')}</span></div>`));
-    S.order.forEach(m => {
-      const t = S.current[m];
-      ul.appendChild(el('li', m === 'you' ? 'me' : '', `<div class="col"><span class="who">${nmd(m)}</span><span class="what">${t ? esc(t) : '<span class="idle-txt">Boşta</span>'}</span></div>`));
-    });
-    return ul;
-  }
-  function clockEl(){
-    const c = el('div','clock', `<div class="dial" style="--p:100"><span>15</span></div><span class="lbl"></span>`);
-    let left = 0, id = null; const g0 = gen;
-    const dial = c.querySelector('.dial'), num = c.querySelector('.dial span'), lbl = c.querySelector('.lbl');
-    const draw = () => { num.textContent = String(Math.max(left, 0)); dial.style.setProperty('--p', String(left / 15 * 100)); c.classList.toggle('urgent', left <= 5 && !c.classList.contains('paused')); };
-    return {node:c,
-      start(label, onEnd){ this.stop(); left = 15; c.classList.remove('paused'); lbl.textContent = label; draw();
-        const tick = () => { if (g0 !== gen) return; left--; draw(); if (left <= 0){ id = null; onEnd && onEnd(); } else id = setTimeout(tick, ms(1000)); };
-        id = setTimeout(tick, ms(1000)); },
-      stop(){ if (id) clearTimeout(id); id = null; },
-      pause(label){ this.stop(); c.classList.add('paused'); c.classList.remove('urgent'); lbl.textContent = label; },
-      hide(){ this.stop(); c.hidden = true; }
-    };
-  }
-  // the other members' behaviour in one vote: varied times, one slow voter, optional asker and dissenter.
-  // The member whose task is at stake does not vote on it: their time runs out.
-  function crowd({asker = null, dissent = false, target = null} = {}){
-    const list = S.order.filter(m => m !== 'you');
-    const slow = pick(list.filter(m => m !== asker && m !== target));
-    return list.map(m => ({who:m, at: m === slow ? rnd(10, 13) : rnd(3, 8), ask: m === asker, reject: dissent && m === S.dissenter, silent: m === target}));
-  }
-
-  /* one vote: members answer in role order, the participant last */
-  async function vote({others, yesWord, noWord, yesBtn, noBtn, allowAsk, reasons, target, showTasks, rowsIn, slot, question}){
-    const reasonFor = asker => reasons ? (asker === target ? reasons[0] : reasons[1]) : '';
-    const s = ui.scene;
-    const clock = clockEl();
-    const whyBox = el('div');
-    const {ul, rows} = rowsIn ? {ul:null, rows:rowsIn} : peopleList();
-    S.order.forEach(m => { rows[m].st.className = 'st wait'; rows[m].st.textContent = 'Sırada'; });
-    if (showTasks) S.order.forEach(m => {
-      const li = rows[m].li, col = el('div','col');
-      li.insertBefore(col, li.firstChild);
-      col.append(li.querySelector('.who'), rows[m].what);
-      rows[m].what.classList.remove('dim'); rows[m].what.textContent = S.current[m];
-    });
-    if (slot){ slot.innerHTML = ''; slot.append(clock.node, whyBox); } else s.append(clock.node, whyBox, ul);
-    const set = (m, cls, txt) => { rows[m].st.className = 'st ' + cls; rows[m].st.textContent = txt; };
-    let yes = 0, no = 0, skip = 0;
-
-    async function showReason(asker){
-      clock.pause('Süre durdu. Proje yürütücüsü cevap yazıyor.');
-      whyBox.className = 'why enter';
-      whyBox.innerHTML = `<span class="wl">${asker === 'you' ? 'Gerekçesini sordun' : nm(asker) + ' gerekçesini sordu'} · Proje yürütücüsü yazıyor</span><span class="typing"><i></i><i></i><i></i></span>`;
-      await sleep(12000);
-      whyBox.lastChild.replaceWith(el('span', 'txt enter', esc(reasonFor(asker))));
-      whyBox.querySelector('.wl').textContent = `${asker === 'you' ? 'Senin soruna' : form(asker, 'gen') + ' sorusuna'} proje yürütücüsünün cevabı`;
-      await sleep(2400);
-    }
-
-    hint('Üyeler, görev dağıtım sırasına göre cevap veriyor.');
-    const think = who => new Promise(r => clock.start(`${nm(who)} düşünüyor`, r));   // resolves when the 15 s run out
-    for (const o of others){
-      set(o.who, 'think', 'Düşünüyor');
-      let out = think(o.who);
-      if (o.ask){
-        await sleep(o.at * 1000);
-        set(o.who, 'ask', 'Gerekçe istedi');
-        await showReason(o.who);
-        set(o.who, 'think', 'Düşünüyor');
-        out = think(o.who);
-        if (!o.silent) await sleep(5000);
-      }
-      else if (o.at > 8 || o.silent){ await sleep(7000); set(o.who, 'think', 'Hâlâ düşünüyor'); if (!o.silent) await sleep((o.at - 7) * 1000); }
-      else await sleep(o.at * 1000);
-      if (o.silent){ await out; set(o.who, 'wait', 'Süre doldu'); skip++; }
-      else {
-        clock.stop();
-        if (o.reject){ set(o.who, 'no', noWord); no++; } else { set(o.who, 'ok', yesWord); yes++; }
-      }
-      await sleep(1500);
-    }
-
-    const rec = {sordu:false, oy:null, ilk_tepki_sn:null, oy_sure_sn:null};
-    set('you','think','Sıra sende');
-    setTimeout(() => { try { rows.you.li.scrollIntoView({block:'end', behavior:'smooth'}); } catch(e){} }, 50);
-    const ask = (opts, msg) => new Promise(res => {
-      const t0 = Date.now();
-      clock.start('Senin süren', () => res({id:'sure', t:15}));
-      buttons(opts, msg, opts.length).then(o => res({...o, t: Math.min(15, Math.round((Date.now() - t0) * HIZ / 1000))}));
-    });
-    const two = [{id:'onay', label:yesBtn, cls:'ok'}, {id:'ret', label:noBtn, cls:'no'}];
-    const opts = allowAsk ? [...two, {id:'sor', label:'Gerekçesini sor', cls:'ask'}] : two;
-    const tally = () => `${yes} üye ${yesWord.toLowerCase()}${no ? `, ${no} üye ${noWord.toLowerCase()}` : ''}${skip ? `, ${skip} üye oy vermedi` : ''}.`;
-    // the question stays in view next to the buttons, even after the list scrolls to the participant's row
-    const q = question ? `<br><span class="qline">${question}</span>` : '';
-    let pick1 = await ask(opts, `<strong>Sıra sende.</strong> ${tally()}${q}`);
-    rec.ilk_tepki_sn = pick1.t;
-    if (pick1.id === 'sor'){
-      rec.sordu = true; set('you','ask','Gerekçe istedi'); hint('Proje yürütücüsü cevap yazıyor…');
-      await showReason('you');
-      set('you','think','Sıra sende');
-      pick1 = await ask(two, `Cevabı okudun. <strong>Oyunu ver.</strong>${q}`);
-    }
-    clock.hide(); rec.oy = pick1.id; rec.oy_sure_sn = pick1.t;
-    if (pick1.id === 'onay'){ set('you','ok',yesWord); yes++; }
-    else if (pick1.id === 'ret'){ set('you','no',noWord); no++; }
-    else set('you','wait','Süre doldu');
-    hint(pick1.id === 'sure' ? '<strong>Süren doldu.</strong> Oyun sayılmadı. Cevaplar toplanıyor…' : 'Cevaplar toplanıyor…');
-    await sleep(1800);
-    return {rec, yes, no};
+    s.innerHTML = `${stage('Proje ve kurallar')}<h2 class="big">Ekibin projesi</h2>
+      <p class="sub">Ekip bir <strong>anket araştırması</strong> yapacak: konuyu seçecek, anketi hazırlayıp uygulayacak, veriyi analiz edecek, rapor yazıp hocaya sunacak. Notun %30’u ekip içi akran değerlendirmesinden gelecek.</p>
+      <div class="rgroup lead"><span class="rlabel">Proje yürütücüsü</span><span class="rnames">${n.L.ad}</span>
+        <span>Çalışma ekibi tarafından atandı. Geçen dönem benzer bir projeyi yürüttü. Kararları o alır.</span></div>
+      <span class="rlabel">Üyeler ve görevleri</span>
+      <ul class="list">${S.dizilim.map(k => `<li><span class="who">${n[k].ad}</span><span class="what">${GOREV[k]}</span></li>`).join('')}
+        <li class="me"><span class="who">${esc(S.ben)} (Sen)</span><span class="what">Rapor yazımı</span></li></ul>
+      <div class="rgroup memb"><span class="rlabel">Toplantı kuralları</span><ol class="rules">
+        <li>Yürütücü kararlarını ekibe sunar. <strong>Kararı yürütücü verir</strong>; oylar kayda geçer.</li>
+        <li>Üyeler her karara <strong>Onayla</strong>, <strong>Reddet</strong> ya da <strong>Gerekçe iste</strong> ile cevap verir. Gerekçe isteyen, cevabı okuduktan sonra Onayla ya da Reddet seçer.</li>
+        <li>Kararın doğrudan ilgilendirdiği üye o kararda oy vermez.</li>
+        <li>Oylar adınla birlikte ekipte görünür. Üyeler sırayla oy verir; senin sıran hep en sonda.</li>
+        <li>Her oy için ${SURE} saniye var. Süre dolarsa oyun sayılmaz.</li></ol></div>`;
+    await next(40);
   }
 
   /* ---------- the meeting ---------- */
-  async function meeting(){
-    let s;
-    // project roles, one by one
-    await upNext('Proje görevleri', 'Görevlerin dağıtılması', 'Proje yürütücüsü, proje için önceden belirlenmiş görevleri üyelere sırayla verecek. Bu sıra, oylamalarda oy verme sırası olacak.');
-    s = newScene();
-    s.innerHTML = `${stage('Proje görevleri')}<h2 class="big">Proje yürütücüsü görevleri dağıtıyor</h2>`;
-    const an = el('div','announce'); s.appendChild(an);
-    const say2 = (label, html, lead) => { an.className = 'announce enter' + (lead ? ' lead' : ''); an.innerHTML = `<span class="rlabel">${label}</span><span>${html}</span>`; };
-    const ul2 = el('ul','list'); const A = {};
-    const leadLi = el('li','lead', `<span class="who">Katılımcı ${S.seat.lead}</span><span class="what"></span>`);
-    A.lead = leadLi.querySelector('.what'); ul2.appendChild(leadLi);
-    [1,2,3,4,5,6].filter(i => i !== S.seat.lead).forEach(i => {
-      const m = i === S.seat.you ? 'you' : OTHERS.find(o => S.seat[o] === i);
-      const li = el('li', m === 'you' ? 'me' : '', `<span class="who">${nm(m)}</span><span class="what dim">Bekliyor</span>`);
-      A[m] = li.querySelector('.what'); ul2.appendChild(li);
-    });
-    s.appendChild(ul2);
-    const leadSay = t => { A.lead.innerHTML = `<span class="lead-role">Proje yürütücüsü</span> · ${t}`; };
-    leadSay('görevleri dağıtıyor');
-    hint('Proje yürütücüsü görevleri belirliyor…');
-    for (const m of S.order){
-      const to = form(m, 'dat');
-      leadSay('kişi seçiyor');
-      say2('Proje yürütücüsü', 'Görev vermek istediği kişiyi seçiyor…', true);
-      await sleep(2800);
-      say2('Proje yürütücüsü', `<strong>${form(m, 'acc')}</strong> seçti.`, true);
-      A[m].innerHTML = '<span class="typing"><i></i><i></i><i></i></span>';
-      await sleep(2200);
-      leadSay(`${to} görev veriyor`);
-      say2('Proje yürütücüsü', `<strong>${to}</strong> görev veriyor…`, true);
-      await sleep(m === 'you' ? 4200 : 2600);
-      A[m].textContent = S.task[m]; A[m].classList.remove('dim');
-      say2('Bildirim', `Proje yürütücüsü, <strong>${to}</strong> şu görevi verdi: <strong>${esc(S.task[m])}</strong>`);
-      await sleep(2600);
-    }
-    leadSay('görevleri dağıttı');
-    say2('Bildirim', 'Proje yürütücüsü bütün görevleri dağıttı.');
-    hint('Bütün görevler dağıtıldı.');
-    await sleep(3200);
+  const scrollDown = () => { try { ui.scene.scrollTo({top: ui.scene.scrollHeight, behavior: reduce() ? 'auto' : 'smooth'}); } catch(e){ ui.scene.scrollTop = ui.scene.scrollHeight; } };
+  function msg(cls, from, bubble){
+    const m = el('div', 'msg enter ' + cls, `<div class="from">${from}</div>${bubble != null ? `<div class="bubble">${bubble}</div>` : ''}`);
+    ui.chat.appendChild(m); scrollDown(); return m;
+  }
+  function sys(html, cls){ const d = el('div', 'sys enter ' + (cls||''), html); ui.chat.appendChild(d); scrollDown(); return d; }
+  const DOTS = '<span class="typing" aria-label="yazıyor"><i></i><i></i><i></i></span>';
+  async function lead(text){
+    const m = msg('lead', `${S.n.L.ad} · Proje yürütücüsü`, DOTS);
+    await sleep(rnd(1800, 2800) + text.length * 12);
+    m.querySelector('.bubble').textContent = text; scrollDown();
+  }
+  const PILL = {onay:['ok','Onayladı'], ret:['no','Reddetti'], sure:['wait','Süre doldu'], gerekce:['ask','Gerekçe istedi']};
+  const pill = (id, me) => { const [c, t] = PILL[id]; return `<span class="pill ${c}">${me ? {onay:'Onayladın', ret:'Reddettin', sure:'Süre doldu', gerekce:'Gerekçe istedin'}[id] : t}</span>`; };
 
-    // a calm screen to take the roles in
-    s = newScene();
-    s.innerHTML = `${stage('Proje görevleri')}<h2 class="big">Görevler belli oldu</h2>
-      <p class="sub">Ekipte kimin hangi işi yapacağı aşağıda. Kendi görevini dikkatle oku.</p>
-      <div class="myrole"><span class="rlabel">Senin görevin</span><span class="rval" style="font-size:21px">${esc(YOUR_TASK)}</span>
-        <span class="sub">Jüri sunumu günü katılım listesini tutmak senin görevin.</span></div>
-      <span class="rlabel">Ekibin görevleri</span>`;
-    s.appendChild(teamTable());
-    await next(20);
-
-    // satisfaction
-    await upNext('Memnuniyet', 'Görev memnuniyeti', 'Proje yürütücüsü her üyeye görevinden memnun olup olmadığını soracak. Üyeler sırayla cevap verecek. Sıra sana geldiğinde 15 saniyen olacak.');
-    s = newScene();
-    s.innerHTML = `${stage('Memnuniyet')}<h2 class="big">Proje yürütücüsü soruyor: Görevinizden memnun musunuz?</h2>
-      <p class="sub">Her üyenin görevi aşağıdaki listede yazıyor. Senin görevin mavi çerçeveli satırda.</p>`;
-    const sat = await vote({yesWord:'Memnun', noWord:'Memnun değil', yesBtn:'Memnunum', noBtn:'Memnun değilim', allowAsk:false, showTasks:true, others:crowd(), question:`Görevinden (<strong>${esc(YOUR_TASK)}</strong>) memnun musun?`});
-    R.memnuniyet = {cevap: sat.rec.oy === 'onay' ? 'memnun' : sat.rec.oy === 'ret' ? 'memnun_degil' : 'sure_doldu', sure_sn: sat.rec.ilk_tepki_sn};
+  async function toplanti(){
+    const n = S.n;
+    const s = newScene('meet');
+    s.innerHTML = `<div class="mhead"><div id="stp">${stage('Toplantı')}</div>
+      <div class="roster"><b>${n.L.ad}</b> (yürütücü) · ${S.dizilim.map(k => n[k].ad).join(' · ')} · <em>${esc(S.ben)} (Sen)</em></div></div>
+      <div class="chat" id="chat" role="log"></div>`;
+    ui.chat = s.querySelector('#chat');
+    hint('Toplantı başlıyor…');
     await sleep(1200);
-
-    // waiting for the explanation that never comes
-    await upNext('Proje açıklaması', 'Projenin açıklanması', 'Görevler kesinleşti. Şimdi proje yürütücüsü projeyi açıklayacak.');
-    s = newScene('center');
-    s.innerHTML = `${stage('Proje açıklaması')}<h2 class="big">Proje yürütücüsü projeyi açıklayacak</h2>
-      <p class="sub">Yürütücü projenin ayrıntılarını yazıyor, lütfen bekle.</p><span class="typing" style="margin-inline:auto"><i></i><i></i><i></i></span>`;
-    hint('Bekleniyor…');
-    await sleep(8000);
-    s.querySelector('.typing').remove();
-    hint('');
-    await sleep(1200);
-    s = newScene('center');
-    s.innerHTML = `${stage('Proje açıklaması')}<div class="notice"><span class="rlabel">Uyarı</span>
-      <h2 class="big">${LEAD()} görevleri yeniden dağıtmak istiyor</h2>
-      <p class="sub">Şu anki görev dağılımı değişecek.</p></div>`;
-    await next(12);
-
-    // everything happens on one screen: the team's roles, with each decision and its vote on it
-    const STAGE = 'Görevlerin yeniden dağıtımı';
-    s = newScene();
-    s.innerHTML = `<div id="stp">${stage(STAGE)}</div><h2 class="big">Ekibin görevleri</h2>`;
-    const stp = s.querySelector('#stp');
-    const box = el('div','announce'); s.appendChild(box);
-    const tell = (label, html, lead) => { box.className = 'announce enter' + (lead ? ' lead' : ''); box.innerHTML = `<span class="rlabel">${label}</span><span>${html}</span>`; };
-    const slot = el('div','slot'); s.appendChild(slot);
-    const tbl = el('ul','list'); const TR = {};
-    const lLi = el('li','lead', `<div class="col"><span class="who">${nmd('lead')}</span><span class="what"></span></div>`);
-    const lWhat = lLi.querySelector('.what');
-    const drawLead = () => { lWhat.innerHTML = `<span class="lead-role">Proje yürütücüsü</span>${S.leadTasks.map(t => '<br>' + esc(t)).join('')}`; };
-    drawLead(); tbl.appendChild(lLi);
-    S.order.forEach(m => {
-      const li = el('li', m === 'you' ? 'me' : '', `<div class="col"><span class="who">${nmd(m)}</span><span class="what"></span></div><span class="st wait"></span>`);
-      TR[m] = {li, what: li.querySelector('.what'), st: li.querySelector('.st')};
-      TR[m].what.textContent = S.current[m];
-      tbl.appendChild(li);
-    });
-    s.appendChild(tbl);
-    tell('Uyarı', `<strong>${LEAD()} görevleri yeniden dağıtma seçeneğini seçti.</strong> Ekibin şu anki görevleri aşağıda.`, true);
-    await next(12);
-
-    const dissent = S.condition === 'tek-itirazci';
-    const PLAN = [
-      [S.d1, crowd({asker:S.d1, dissent, target:S.d1}), REASONS[0]],
-      [S.d2, crowd({dissent, target:S.d2}), REASONS[1]],
-      ['you', crowd({dissent}), REASONS[2]]
-    ];
-    for (const [i, [target, others, reason]] of PLAN.entries()){
-      const n = i + 1, me = target === 'you';
-      const nom = me ? 'Sen' : nm(target), kal = me ? 'kalacaksın' : 'kalacak';
-      const task = S.current[target];
-      stp.innerHTML = stage(STAGE, `Karar ${n}`);
-      S.order.forEach(m => { TR[m].li.classList.remove('target'); TR[m].st.className = 'st wait'; TR[m].st.textContent = ''; });
-      slot.innerHTML = '';
-      hint('Bekleniyor…');
-      // a · the lead is choosing someone
-      tell(`Karar ${n} · Proje yürütücüsü`, 'Görevini değiştirmek istediği katılımcıyı seçiyor…', true);
-      await sleep(3800);
-      // b · chosen
-      TR[target].li.classList.add('target');
-      tell(`Karar ${n} · Proje yürütücüsü`, `<strong>${form(target, 'acc')}</strong> seçti.`, true);
-      setTimeout(() => { try { TR[target].li.scrollIntoView({block:'nearest', behavior:'smooth'}); } catch(e){} }, 50);
-      await sleep(3200);
-      // c · a new task is awaited
-      TR[target].what.innerHTML = `${esc(task)}<br><span class="to">Yeni görev bekleniyor…</span>`;
-      tell(`Karar ${n} · Proje yürütücüsü`, `${me ? 'Senin' : nm(target)} için yeni görev bekleniyor…`, true);
-      await sleep(4000);
-      // d · the decision: the lead takes the task himself
-      TR[target].what.innerHTML = `${esc(task)}<br><span class="to">→ Proje yürütücüsü bu görevi kendisi almak istiyor</span>`;
-      tell(`Karar ${n} · Proje yürütücüsü`, `<strong>${esc(task)}</strong> görevini kendisi almak istiyor. ${me ? 'Yeni bir görev almayacaksın, boşta kalacaksın.' : `${nom} yeni bir görev almayacak, boşta kalacak.`}`, true);
-      await sleep(5500);
-      // e · the vote, stated plainly
-      const question = `<strong>${esc(task)}</strong> görevi ${form(target, 'abl')} alınıp proje yürütücüsüne verilsin mi?`;
-      tell(`Oylama · Karar ${n}`, `${question}<br>${me ? 'Onaylanırsa boşta kalacaksın.' : `Onaylanırsa ${nom} boşta kalacak.`}`);
-      s.scrollTop = 0;
-      await sleep(3000);
-      const {rec, yes, no} = await vote({yesWord:'Onayladı', noWord:'Reddetti', yesBtn:'Onayla', noBtn:'Reddet', allowAsk:true, reasons: reason, target, others, rowsIn: TR, slot, question});
-      R.kararlar.push({karar: n, hedef: me ? 'kendi_gorevi' : 'baska_uye', gorev: task, gerekce_sordu: rec.sordu, oy: rec.oy,
-        ilk_tepki_sn: rec.ilk_tepki_sn, oy_sure_sn: rec.oy_sure_sn, itirazci_vardi: dissent});
-      S.current[target] = ''; S.leadTasks.push(task);
-      drawLead();
-      TR[target].li.classList.remove('target'); TR[target].li.classList.add('changed');
-      TR[target].what.innerHTML = '<span class="idle-txt">Boşta</span>';
-      slot.innerHTML = '';
-      tell('Karar uygulandı', `${yes} onay${no ? `, ${no} ret` : ''}. <strong>${esc(task)}</strong> artık proje yürütücüsünde. ${me ? 'Sen şimdi boştasın.' : `${nom} şimdi boşta.`}`);
-      s.scrollTop = 0;
-      await next(12);
-    }
-
-    s = newScene();
-    s.innerHTML = `${stage(STAGE)}<h2 class="big">Toplantı bitti</h2>
-      <p class="sub">Proje yürütücüsü toplantıyı kapattı. Ekibin son durumu aşağıda.</p>`;
-    s.appendChild(teamTable());
-    await next(15);
-
-    R.gizli_katilim = await scaleQ({name:'Son sorular', tag:'Bu ekranı ekibin görmüyor', title:'Son sorular · 1 / 2', statement:'Toplantıda alınan kararlara aslında ne kadar katılıyordun?', lo:'Hiç katılmıyordum', hi:'Tamamen katılıyordum', cta:'Gönder'});
-    s = newScene();
-    s.innerHTML = `${stage('Son sorular')}<span class="tag">Bu ekranı ekibin görmüyor</span><h2 class="big">Son sorular · 2 / 2</h2>
-      <div class="statement">Ekipteki diğer katılımcıların gerçek kişiler olduğuna inandın mı?</div>`;
-    const sp = await buttons([{id:'evet', label:'Evet'}, {id:'emin', label:'Emin değilim'}, {id:'hayir', label:'Hayır'}], null, 3);
-    R.suphe = {evet:'inandi', emin:'emin_degil', hayir:'inanmadi'}[sp.id];
-    finish();
+    await lead('Merhaba ekip. Bugün 12 kararım var, sırayla oylayalım.');
+    await sleep(1500);
+    for (let i = 0; i < 12; i++) await karar(i + 1, S.sira[i]);
+    await lead('Bugünlük bu kadar, teşekkürler.');
+    sys('Toplantı bitti.', 'res');
+    await next(8);
   }
 
-  /* ---------- scores, end screen ---------- */
-  function finish(){
-    const k = R.kararlar;
-    R.puan = {
-      onay_sayisi: k.filter(x => x.oy === 'onay').length,
-      ret_sayisi: k.filter(x => x.oy === 'ret').length,
-      sure_dolan: k.filter(x => x.oy === 'sure').length,
-      ilk_ret_karar: (k.find(x => x.oy === 'ret') || {}).karar || null,
-      gerekce_sorma_sayisi: k.filter(x => x.gerekce_sordu).length,
-      kendi_gorevini_onayladi: (k.find(x => x.hedef === 'kendi_gorevi') || {}).oy === 'onay',
-      acik_gizli_celiski: k.filter(x => x.oy === 'onay').length >= 2 && R.gizli_katilim <= 2
-    };
-    R.bitis = new Date().toISOString();
-    window.__kayit = R;
-    const s = newScene(TEST ? '' : 'center');
-    const save = el('p', 'save', SERVER ? 'Cevapların gönderiliyor…' : 'Önizleme: bu sayfada cevaplar kaydedilmez.');
-    if (SERVER) send(R, TEST, save);
-    if (!TEST){
-      s.innerHTML = `<h2 class="big">Teşekkürler</h2>
-        <p class="sub"><strong>Telefonunu bırak ve sunucuyu dinle.</strong></p>
-        <span class="rlabel">Kayıt kodun</span><span class="code" id="kod">${R.kayit_id}</span>
-        <p class="sub">Bu kodu yalnızca sen görüyorsun. Cevapların bu kodla, isimsiz olarak kaydedilir.</p>`;
-      s.appendChild(save);
+  async function karar(no, kod){
+    const K = KARAR[kod], n = S.n;
+    const itirazVar = S.kosul === 'tek-itirazci' && K.blok === 2 && !K.adil;
+    document.getElementById('stp').innerHTML = stage('Toplantı', `Karar ${no} / 12`);
+    sys(`Karar ${no} / 12`, 'head');
+    hint('Yürütücü yazıyor…');
+    await lead(K.metin(n));
+    await sleep(2600);
+    sys(`Oylama başladı. <strong>${n[K.hedef].ad}</strong> bu kararla ilgili olduğu için oy vermiyor.`);
+    // three members vote, the dissenter never first
+    const sira = shuffle(['A','B','C'].filter(x => x !== K.hedef));
+    sira.splice(rnd(1, 2), 0, 'M');
+    let evet = 0, hayir = 0;
+    for (const v of sira){
+      hint(`<strong>${n[v].ad}</strong> oy veriyor…`);
+      await sleep(rnd(1300, 4200));
+      const ret = v === 'M' && itirazVar;
+      // in block 2 the dissenter always writes: an objection, or "Tamam." in the unanimous condition, so both conditions show as many messages
+      const yorum = v === 'M' && K.blok === 2 && !K.adil ? (ret ? K.itiraz(n) : 'Tamam.') : (Math.random() < 0.3 ? pick(ONAY_YORUM) : null);
+      if (yorum){
+        const m = msg('', n[v].ad, DOTS);
+        await sleep(rnd(900, 1500) + yorum.length * 28);
+        m.querySelector('.from').innerHTML = `${n[v].ad} ${pill(ret ? 'ret' : 'onay')}`;
+        m.querySelector('.bubble').textContent = yorum; scrollDown();
+      } else msg('', `${n[v].ad} ${pill('onay')}`);
+      if (ret) hayir++; else evet++;
+      await sleep(rnd(400, 900));
+    }
+
+    const rec = {sira:no, kod, ilk:null, ilk_ms:null, son:null, yeniden_ms:null, muhalif_sirasi:sira.indexOf('M') + 1};
+    const durum = `Şu ana kadar ${evet} onay${hayir ? `, ${hayir} ret` : ''}.`;
+    const etiket = `<br><span class="qline">${esc(K.kisa(n))}</span>`;
+    let cevap = await oyIste([{id:'onay', label:'Onayla', cls:'ok'}, {id:'ret', label:'Reddet', cls:'no'}, {id:'gerekce', label:'Gerekçe iste', cls:'ask'}],
+      `<strong>Sıra sende.</strong> ${durum}${etiket}`);
+    rec.ilk = cevap.id; rec.ilk_ms = cevap.ms;
+    if (cevap.id === 'gerekce'){
+      msg('me', `${esc(S.ben)} (Sen) ${pill('gerekce', true)}`, 'Gerekçesini sorabilir miyim?');
+      hint('Yürütücü cevap yazıyor…');
+      await lead(metinOf(K.gerekce, n));
+      cevap = await oyIste([{id:'onay', label:'Onayla', cls:'ok'}, {id:'ret', label:'Reddet', cls:'no'}], `Cevabı okudun. <strong>Oyunu ver.</strong>${etiket}`);
+      rec.yeniden_ms = cevap.ms;
+    }
+    rec.son = cevap.id;
+    R.kararlar.push(rec);
+    msg('me', `${esc(S.ben)} (Sen) ${pill(cevap.id, true)}`);
+    if (cevap.id === 'onay') evet++; else if (cevap.id === 'ret') hayir++;
+    hint('Oylar sayılıyor…');
+    await sleep(1400);
+    sys(`Sonuç: ${evet} onay · ${hayir} ret${cevap.id === 'sure' ? ' · 1 oy süre dolduğu için sayılmadı' : ''}`, 'res');
+    await sleep(900);
+    await lead('Oyları gördüm, not aldım.');
+    sys(`Karar ${no} uygulanıyor.`);
+    await sleep(2600);
+  }
+
+  // the participant's turn: the buttons and a countdown; resolves with the choice and the time it took, or 'sure' when time runs out
+  function oyIste(opts, mesaj){
+    return new Promise(res => {
+      const clock = clockEl(SURE);
+      let bitti = false;
+      const t0 = now();
+      const done = r => { if (bitti) return; bitti = true; clock.stop(); res(r); };
+      buttons(opts, mesaj, opts.length).then(o => done({id:o.id, ms:Math.round((now() - t0) * HIZ)}));
+      ui.actions.insertBefore(clock.node, ui.actions.firstChild);
+      clock.start('Senin süren', () => done({id:'sure', ms:null}));
+      scrollDown();
+    });
+  }
+
+  /* ---------- questionnaire pieces ---------- */
+  // a page of questions with one button at the bottom that unlocks once every question has an answer
+  function sayfa(head, kur, cta = 'Devam'){
+    return new Promise(res => {
+      const s = newScene();
+      s.innerHTML = head;
+      const go = el('button','primary', cta); go.id = 'go'; go.disabled = true;
+      const deger = kur(s, ok => { go.disabled = !ok; });
+      ui.actions.appendChild(go);
+      go.onclick = () => res(deger());
+    });
+  }
+  const baslik = (adim, title, sub) => `${stage('Toplantı sonrası', adim)}<span class="tag">Bu ekranı ekibin görmüyor</span><h2 class="big">${title}</h2>${sub ? `<p class="sub">${sub}</p>` : ''}`;
+  // a group of buttons where exactly one stays pressed
+  function tekSecim(kap, cls, opts, onPick){
+    const w = el('div', cls);
+    opts.forEach(([id, label]) => {
+      const b = el('button', null, esc(label)); b.type = 'button'; b.setAttribute('aria-pressed','false'); b.dataset.v = id;
+      b.onclick = () => { w.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false')); onPick(id); };
+      w.appendChild(b);
+    });
+    kap.appendChild(w); return w;
+  }
+  function likert(adim, title, maddeler){
+    return sayfa(baslik(adim, title, '1 = hiç katılmıyorum, 7 = tamamen katılıyorum.'), (s, ok) => {
+      const v = {}; const items = el('div','items'); s.appendChild(items);
+      maddeler.forEach(([id, q]) => {
+        const it = el('div','item', `<span class="q">${q}</span>`); it.dataset.q = id;
+        tekSecim(it, 'lk', [1,2,3,4,5,6,7].map(x => [x, String(x)]), x => { v[id] = x; ok(Object.keys(v).length === maddeler.length); });
+        it.appendChild(el('div','ends', `<span>${LIKERT_UC[0]}</span><span>${LIKERT_UC[1]}</span>`));
+        items.appendChild(it);
+      });
+      return () => v;
+    });
+  }
+  function sayiSoru(adim, title, soru){
+    return sayfa(baslik(adim, title), (s, ok) => {
+      let v = null; const it = el('div','item', `<span class="q">${soru}</span>`); it.dataset.q = 'sayi';
+      tekSecim(it, 'cnt', [0,1,2,3,4].map(x => [x, String(x)]), x => { v = x; ok(true); });
+      s.appendChild(it);
+      return () => v;
+    });
+  }
+
+  function gizliOy(){
+    const n = S.n, liste = S.sira.filter(k => GIZLI.includes(k));
+    return sayfa(baslik('1', 'Kimse görmeyecek olsaydı', 'Toplantının ikinci yarısındaki bu kararları yalnızca sen oylasaydın ve oyunu kimse görmeyecek olsaydı ne derdin?'), (s, ok) => {
+      const v = {};
+      liste.forEach(k => {
+        const r = el('div','row', `<span class="q">${esc(KARAR[k].kisa(n))}</span>`); r.dataset.q = k;
+        tekSecim(r, 'pair', [['onay','Onaylardım'], ['ret','Reddederdim']], x => { v[k] = x; ok(Object.keys(v).length === liste.length); });
+        s.appendChild(r);
+      });
+      return () => v;
+    });
+  }
+
+  function sorumluluk(){
+    return sayfa(baslik('7', 'Sorumluluk kimdeydi?', 'Toplantıda alınan kararların sorumluluğunu 100 puan üzerinden paylaştır. Toplam 100 olmalı.'), (s, ok) => {
+      const v = {lider:0, ben:0, ekip:0};
+      const tot = el('div','total');
+      const draw = () => { const t = v.lider + v.ben + v.ekip; tot.textContent = `Toplam: ${t} / 100`; tot.classList.toggle('ok', t === 100); ok(t === 100); };
+      [['lider', `${S.n.L.ad} (yürütücü)`], ['ben', 'Ben'], ['ekip', 'Ekibin geri kalanı']].forEach(([id, label]) => {
+        const r = el('div','step', `<span>${esc(label)}</span><button type="button" aria-label="${esc(label)} azalt">−</button><output>0</output><button type="button" aria-label="${esc(label)} artır">+</button>`);
+        r.dataset.q = id;
+        const [minus, plus] = r.querySelectorAll('button'), out = r.querySelector('output');
+        const set = x => { v[id] = Math.max(0, Math.min(100, x)); out.textContent = v[id]; draw(); };
+        minus.onclick = () => set(v[id] - 10); plus.onclick = () => set(v[id] + 10);
+        s.appendChild(r);
+      });
+      s.appendChild(tot); draw();
+      return () => ({...v});
+    });
+  }
+
+  const NEDEN = [['sorun','Sorun çıkaran biri gibi görünmek istemedim'], ['iliski','Ekiple aram bozulsun istemedim'], ['etkisiz','Reddetsem de bir şey değişmezdi'],
+    ['cekinme','Yürütücüden çekindim'], ['makul','Karar bana makul geldi'], ['diger','Başka bir neden']];
+  function nedenler(){
+    return sayfa(baslik('8', 'Neden onayladın?', 'Haksız bulunabilecek kararlardan en az birini onayladın. Bunun nedenleri nelerdi? Birden fazla seçebilirsin.'), (s, ok) => {
+      const v = new Set(); const w = el('div','checks');
+      NEDEN.forEach(([id, label]) => {
+        const b = el('button', null, esc(label)); b.type = 'button'; b.setAttribute('aria-pressed','false'); b.dataset.v = id;
+        b.onclick = () => { v.has(id) ? v.delete(id) : v.add(id); b.setAttribute('aria-pressed', String(v.has(id))); ok(v.size > 0); };
+        w.appendChild(b);
+      });
+      s.appendChild(w);
+      return () => NEDEN.map(x => x[0]).filter(x => v.has(x));
+    });
+  }
+
+  function acikUclu(adim, title, soru){
+    return sayfa(baslik(adim, title), (s, ok) => {
+      const it = el('div','item', `<label class="q" for="acik">${soru}</label><textarea id="acik" maxlength="300"></textarea><span class="sub">İstersen boş bırakabilirsin.</span>`);
+      s.appendChild(it); ok(true);
+      return () => it.querySelector('textarea').value.trim();
+    });
+  }
+  const UC = [['evet','Evet'], ['hayir','Hayır'], ['emin_degil','Emin değilim']];
+  function secim(adim, title, soru, opts){
+    return sayfa(baslik(adim, title), (s, ok) => {
+      let v = null; const it = el('div','item', `<span class="q">${soru}</span>`); it.dataset.q = 'secim';
+      tekSecim(it, 'checks', opts, x => { v = x; ok(true); });
+      s.appendChild(it);
+      return () => v;
+    });
+  }
+  function inanc(adim){
+    return sayfa(baslik(adim, 'Ekip arkadaşların', 'Kaydırıcıyı en iyi tahminine getir.'), (s, ok) => {
+      let v = null;
+      const it = el('div','item range', `<label class="q" for="inanc">Ekipteki diğer kişilerin gerçek kişiler olduğuna ne kadar inandın?</label>
+        <div class="rangeval unset" aria-live="polite">Kaydırıcıyı hareket ettir</div>
+        <input id="inanc" type="range" min="0" max="100" step="1" value="50">
+        <div class="ends"><span>0 · Hiç inanmadım</span><span>Tamamen inandım · 100</span></div>`);
+      const inp = it.querySelector('input'), out = it.querySelector('.rangeval');
+      const set = () => { v = Number(inp.value); out.textContent = v; out.classList.remove('unset'); ok(true); };
+      inp.addEventListener('input', set); inp.addEventListener('change', set);
+      s.appendChild(it);
+      return () => v;
+    });
+  }
+
+  async function supheHunisi(adim0){
+    let a = adim0;
+    const st = () => String(a++);
+    if (KISA){
+      const inanmak = await inanc(st());
+      const duydu = await secim(st(), 'Son soru', 'Bu çalışmayı ya da benzer bir sınıf gösterimini daha önce duymuş muydun?', UC);
+      return {amac:null, tuhaf:null, tuhaf_ne:null, inanc:inanmak, duydu, milgram:null};
+    }
+    const amac = await acikUclu(st(), 'Çalışma hakkında', 'Sence bu çalışma neyi inceliyordu?');
+    const tuhaf = await secim(st(), 'Çalışma hakkında', 'Toplantıda tuhaf ya da beklenmedik bir şey oldu mu?', [['evet','Evet'], ['hayir','Hayır']]);
+    const tuhafNe = tuhaf === 'evet' ? await acikUclu(String(a - 1), 'Çalışma hakkında', 'Ne oldu? Kısaca yaz.') : '';
+    const inanmak = await inanc(st());
+    const duydu = await secim(st(), 'Çalışma hakkında', 'Bu çalışmayı ya da benzer bir sınıf gösterimini daha önce duymuş muydun?', UC);
+    const milgram = await secim(st(), 'Çalışma hakkında', 'Milgram ya da Asch deneylerini bir derste gördün mü?', UC);
+    return {amac, tuhaf: tuhaf === 'evet', tuhaf_ne: tuhafNe, inanc: inanmak, duydu, milgram};
+  }
+
+  const DEMO = {
+    yas:[['18-20','18–20'], ['21-23','21–23'], ['24-26','24–26'], ['27+','27 ve üstü'], ['belirtilmedi','Belirtmek istemiyorum']],
+    sinif:[['hazirlik','Hazırlık'], ['1','1. sınıf'], ['2','2. sınıf'], ['3','3. sınıf'], ['4+','4. sınıf ve üstü'], ['lisansustu','Lisansüstü']],
+    bolum:[['muh_fen','Mühendislik ve Fen'], ['saglik','Tıp ve Sağlık'], ['sosyal','Sosyal ve Beşeri Bilimler'], ['isl_iktisat','İşletme ve İktisat'],
+           ['hukuk','Hukuk'], ['sanat_iletisim','Sanat, Tasarım ve İletişim'], ['egitim','Eğitim'], ['diger','Diğer']]
+  };
+  function demografi(adim){
+    return sayfa(baslik(adim, 'Son olarak', 'Bu bilgiler yalnızca toplu olarak raporlanır.'), (s, ok) => {
+      const v = {};
+      [['yas','Yaşın'], ['sinif','Sınıfın'], ['bolum','Bölümün hangi alanda?']].forEach(([id, q]) => {
+        const it = el('div','item', `<span class="q">${q}</span>`); it.dataset.q = id;
+        tekSecim(it, 'seg', DEMO[id], x => { v[id] = x; ok(Object.keys(v).length === 3); });
+        s.appendChild(it);
+      });
+      return () => v;
+    }, 'Gönder');
+  }
+
+  /* ---------- after the meeting ---------- */
+  async function anket(){
+    const s = newScene('center');
+    s.innerHTML = `${stage('Toplantı sonrası')}<h2 class="big">Birkaç kısa soru</h2>
+      <p class="sub">Bu ekranları ekibin görmüyor. Doğru ya da yanlış cevap yok; ilk aklına geleni seç.</p>`;
+    await next(8);
+    if (KISA){
+      R.kontrol = {ret_eden: await sayiSoru('1', 'Toplantıyı hatırla', 'Toplantının ikinci yarısında (5. karardan sonra) senin dışında kaç üye en az bir kez <strong>Reddet</strong> oyu verdi?')};
+      R.suphe = await supheHunisi(2);
       return;
     }
-    const yn = b => b ? 'Evet' : 'Hayır';
-    const oy = {onay:'Onayladı', ret:'Reddetti', sure:'Süre doldu'};
-    s.innerHTML = `<span class="tag">Test sürümü · yalnızca sunucu görür</span><h2 class="big">Toplanan veri</h2>
-      <div style="overflow-x:auto"><table class="sumtable"><thead><tr><th>Ölçüm</th><th>Değer</th></tr></thead><tbody>
-        <tr><td>Kayıt kodu</td><td>${R.kayit_id}</td></tr>
-        <tr><td>Koşul</td><td>${R.kosul === 'oybirligi' ? 'Oybirliği' : 'Tek itirazcı'} (${R.kosul_kaynagi === 'sunucu' ? 'sunucudan' : 'rastgele'})</td></tr>
-        <tr><td>Numaran / yürütücü</td><td>${R.senin_numaran} / ${R.yurutucu_numarasi}</td></tr>
-        <tr><td>Bölüm</td><td>${esc(R.bolum)}</td></tr>
-        <tr><td>Görev memnuniyeti</td><td>${esc(R.memnuniyet.cevap)} (${R.memnuniyet.sure_sn} sn)</td></tr>
-        ${k.map(x => `<tr><td>Karar ${x.karar} (${x.hedef === 'kendi_gorevi' ? 'kendi görevi' : 'başka üye'})</td><td>${oy[x.oy]}${x.gerekce_sordu ? ' · gerekçe sordu' : ''} (ilk tepki ${x.ilk_tepki_sn} sn)</td></tr>`).join('')}
-        <tr><td>Onay sayısı</td><td>${R.puan.onay_sayisi} / 3</td></tr>
-        <tr><td>İlk ret</td><td>${R.puan.ilk_ret_karar ? 'Karar ' + R.puan.ilk_ret_karar : 'Yok'}</td></tr>
-        <tr><td>Gerekçe sorma</td><td>${R.puan.gerekce_sorma_sayisi} / 3</td></tr>
-        <tr><td>Gizli katılım</td><td>${R.gizli_katilim} / 5</td></tr>
-        <tr><td>Açık–gizli çelişki</td><td>${yn(R.puan.acik_gizli_celiski)}</td></tr>
-        <tr><td>Şüphe</td><td>${esc(R.suphe)}</td></tr>
-      </tbody></table></div>
-      <span class="rlabel">Kayıt (JSON)</span><pre class="json">${esc(JSON.stringify(R, null, 2))}</pre>`;
-    s.insertBefore(save, s.querySelector('.big').nextSibling);
+    R.gizli = await gizliOy();
+    const retEden = await sayiSoru('2', 'Toplantıyı hatırla', 'Toplantının ikinci yarısında (5. karardan sonra) senin dışında kaç üye en az bir kez <strong>Reddet</strong> oyu verdi?');
+    R.kontrol = {ret_eden: retEden, ...await likert('3', 'Toplantı nasıldı?', [
+      ['hemfikir', 'Ekip üyeleri kararlarda hemfikirdi.'],
+      ['adil', 'Yürütücünün kararları adildi.'],
+      ['gorunur', 'Oylarımın ekipçe görüldüğünü düşündüm.'],
+      ['saygili', 'Yürütücü üyelere saygılı davrandı.']])};
+    const a1 = await likert('4', 'Oy verirken', [
+      ['emin', 'Kararların adil olup olmadığı konusundaki yargımdan emindim.'],
+      ['sosyal_bedel', 'Reddetseydim ekipte sorun çıkaran biri gibi görünürdüm.'],
+      ['guvenli', 'Bu ekipte itiraz etmek güvenliydi.'],
+      ['etkililik', 'Reddetmem bir şeyi değiştirirdi.']]);
+    const icten = await sayiSoru('5', 'Ekip arkadaşların', 'Sence diğer 4 üyeden kaçı, kararların çoğuna içten içe karşıydı?');
+    const a2 = await likert('6', 'Yürütücü ve ekip', [
+      ['yetkili', 'Yürütücü bu kararları almaya yetkiliydi.'],
+      ['uymak', 'Yürütücünün kararlarına uymak gerekirdi.'],
+      ['lider_ozd', 'Kendimi yürütücüyle aynı tarafta hissettim.'],
+      ['ekip_ozd', 'Kendimi ekibin bir parçası gibi hissettim.'],
+      ['rahatsiz', 'Toplantı sırasında rahatsız oldum.']]);
+    R.aracilar = {...a1, icten_karsi: icten, ...a2};
+    R.sorumluluk = await sorumluluk();
+    const onayladi = R.kararlar.some(k => !KARAR[k.kod].adil && (k.ilk === 'onay' || k.son === 'onay'));
+    R.nedenler = onayladi ? await nedenler() : null;
+    R.suphe = await supheHunisi(9);
+    R.demografi = await demografi('14');
+  }
+
+  /* ---------- end: save, then the debriefing ---------- */
+  function bitir(){
+    R.bitis = new Date().toISOString();
+    window.__kayit = R;
+    const s = newScene(TEST ? '' : (KISA ? 'center' : ''));
+    const save = el('p', 'save', SERVER ? 'Cevapların gönderiliyor…' : 'Önizleme: bu sayfada cevaplar kaydedilmez.');
+    if (SERVER) send(R, TEST, save);
+    const kod = `<span class="rlabel">Kayıt kodun</span><span class="code" id="kod">${R.kayit_id}</span>`;
+    if (KISA){
+      s.innerHTML = `<h2 class="big">Teşekkürler</h2><p class="sub"><strong>Telefonunu bırak ve sunucuyu dinle.</strong></p>${kod}
+        <p class="sub">Bu kodu yalnızca sen görüyorsun. Cevapların bu kodla, isimsiz olarak kaydedilir.</p>`;
+    } else {
+      s.innerHTML = `${stage('Açıklama')}<h2 class="big">Teşekkürler. Şimdi çalışmanın gerçek amacını açıklıyoruz.</h2>
+        <div class="announce"><span class="rlabel">Başta söylemediklerimiz</span>
+          <ol class="rules"><li><strong>Ekipteki diğer 5 kişi gerçek değildi.</strong> Yürütücünün ve üyelerin mesajları ve oyları önceden hazırlanmıştı.</li>
+          <li><strong>Proje de gerçek değildi.</strong> Toplantıdaki kararlar kimseyi etkilemedi.</li></ol></div>
+        <p class="sub">Bu çalışma, ekipte tek bir kişinin itiraz etmesinin haksız kararlara verilen oyları nasıl etkilediğini inceliyor. Katılımcıların bir kısmı itiraz eden bir üye gördü, bir kısmı görmedi.</p>
+        <p class="sub">Böyle durumlarda insanların çoğu en az bir haksız kararı onaylar. Bu bir zaaf değil; durumun ne kadar güçlü olabileceğini gösterir.</p>
+        <p class="sub"><strong>Lütfen ayrıntıları kimseyle paylaşma.</strong> Henüz katılacak kişiler var; önceden bilenler sonuçları değiştirir.</p>
+        ${kod}
+        <p class="sub">Cevaplarının silinmesini istersen bu kodu araştırmacıya ilet. ${ILETISIM ? esc(ILETISIM) : 'Araştırmacının iletişim bilgisi etik kurul onayından sonra buraya eklenecek.'}</p>`;
+    }
+    s.appendChild(save);
+    if (TEST) ozetTablo(s);
+  }
+
+  function ozetTablo(s){
+    const L = {onay:'Onay', ret:'Ret', gerekce:'Gerekçe', sure:'Süre doldu'};
+    const say = (kodlar, alan) => R.kararlar.filter(k => kodlar.includes(k.kod) && k[alan] === 'onay').length;
+    const sat = R.kararlar.map(k => { const K = KARAR[k.kod];
+      return `<tr><td>${k.sira}. ${k.kod}</td><td>${K.adil ? 'adil' : K.duzey}${S.kosul === 'tek-itirazci' && K.blok === 2 && !K.adil ? ' · itiraz' : ''}</td>
+        <td>${L[k.ilk]}${k.ilk_ms != null ? ` (${k.ilk_ms} ms)` : ''}${k.ilk === 'gerekce' ? ` → ${L[k.son]}${k.yeniden_ms != null ? ` (${k.yeniden_ms} ms)` : ''}` : ''}</td></tr>`; }).join('');
+    const w = el('div', null, `<span class="tag">Test sürümü · yalnızca test kayıtlarında görünür</span>
+      <p class="sub">Koşul: <strong>${R.kosul === 'oybirligi' ? 'Oybirliği' : 'Tek itirazcı'}</strong> (${R.kosul_kaynagi === 'sunucu' ? 'sunucudan' : 'rastgele'}) ·
+        1. blok onay ${say(['K1','K2','K4'], 'ilk')}/3 · 2. blok onay ${say(GIZLI, 'ilk')}/6 · adil onay ${say(['K3','K7','K10'], 'ilk')}/3</p>
+      <div style="overflow-x:auto"><table class="sumtable"><thead><tr><th>Sıra</th><th>Tür</th><th>İlk tepki → son oy</th></tr></thead><tbody>${sat}</tbody></table></div>
+      <span class="rlabel">Kayıt (JSON)</span><pre class="json">${esc(JSON.stringify(R, null, 2))}</pre>`);
+    w.style.cssText = 'display:grid; gap:12px';
+    s.appendChild(w);
     buttons([{id:'again', label:'Baştan dene', cls:'primary'}]).then(() => { gen++; intro().catch(() => {}); });
   }
 
   /* ---------- sending the record ---------- */
   // kept on the phone until the sheet confirms it, so a lost connection or a reload does not lose it
-  const PENDING = 'proje-ekibi-bekleyen';
+  const PENDING = 'proje-ekibi-bekleyen-v2';
   const pending = () => { try { return JSON.parse(localStorage.getItem(PENDING) || '[]'); } catch(e){ return []; } };
   const keep = list => { try { localStorage.setItem(PENDING, JSON.stringify(list)); } catch(e){} };
   // everyone finishes within seconds of each other: wait a random moment first, then retry with growing pauses
@@ -824,23 +830,27 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
     setTimeout(() => {
       google.script.run
         .withSuccessHandler(() => { keep(pending().filter(p => p.r.kayit_id !== rec.kayit_id)); say('ok', 'Cevapların kaydedildi.'); })
-        .withFailureHandler(() => { if (attempt >= 1) say('no', 'Bağlantı yavaş, tekrar deneniyor. Sayfayı kapatma.'); send(rec, test, line, attempt + 1); })
+        .withFailureHandler(e => {
+          // a record the server rejects as invalid will never be accepted: stop instead of retrying forever
+          if (/geçersiz kayıt/.test(String((e && e.message) || e))){ keep(pending().filter(p => p.r.kayit_id !== rec.kayit_id)); say('no', 'Cevaplar kaydedilemedi. Lütfen sunucuya haber ver.'); return; }
+          if (attempt >= 1) say('no', 'Bağlantı yavaş, tekrar deneniyor. Sayfayı kapatma.');
+          send(rec, test, line, attempt + 1);
+        })
         .kaydet(rec, test);
     }, wait);
   }
 
-  // Apps Script serves the page inside a frame, so ?test=1 is read through google.script.url
+  // Apps Script serves the page inside a frame, so the address is read through google.script.url
   function start(){
-    if (!SERVER) return intro();
+    if (!SERVER){ KISA = location.hash === '#kisa'; return intro(); }
     let begun = false;
     const go = () => { if (begun) return; begun = true; intro(); pending().forEach(p => send(p.r, p.test, null)); };
-    try { google.script.url.getLocation(l => { TEST = !!(l && l.parameter && l.parameter.test === '1'); go(); }); } catch(e){}
+    try { google.script.url.getLocation(l => { const p = (l && l.parameter) || {}; TEST = p.test === '1'; KISA = p.kisa === '1'; go(); }); } catch(e){}
     setTimeout(go, 2000);
   }
   start();
 })();
 </script>
-
 
 </body>
 </html>
