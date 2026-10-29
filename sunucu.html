@@ -15,8 +15,8 @@
   if (yerel && q.get('hiz')) window.__hiz = Number(q.get('hiz'));   // speeds the flow up, only when tested on this computer
   const post = govde => fetch(API, {method: 'POST', credentials: 'omit', headers: {'Content-Type': 'text/plain;charset=utf-8'}, body: JSON.stringify(govde)});
   const istek = (fn, args) => {
-    if (fn === 'kosulAl') return fetch(API + '?api=kosul' + (args[0] ? '&test=1' : ''), {credentials: 'omit', cache: 'no-store'});
-    if (fn === 'kaydet') return post({api: 'kaydet', kayit: args[0], test: !!args[1]});
+    if (fn === 'kosulAl') return fetch(API + '?api=kosul' + (args[0] ? '&test=1' : '') + (args[1] === 'kisa' ? '&mod=kisa' : ''), {credentials: 'omit', cache: 'no-store'});
+    if (fn === 'kaydet' || fn === 'kaydetEk') return post({api: fn, kayit: args[0], test: !!args[1]});
     if (fn === 'ozet' || fn === 'yeniOturum') return post({api: fn, anahtar: args[0], test: !!args[1]});
     return Promise.reject(new Error('bilinmeyen işlem: ' + fn));
   };
@@ -37,9 +37,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: a projector screen. Top: how many joined and finished (safe to show while phones are in use).
-   After "Sonuçları göster": approval decision by decision for the two conditions, then the block summary as a table.
-   Colour meaning: blue = nobody objected · orange = one member objected. Fixed per condition, never by rank. */
 :root{
   --bg:#F5F6F9; --surface:#FFFFFF; --surface-2:#ECEEF3; --line:#D8DCE5; --grid:#E3E6ED; --band:#F0F2F7;
   --fg:#14171F; --muted:#5A6072; --accent:#3346C8; --accent-fg:#FFFFFF;
@@ -91,7 +88,6 @@ h2{font-size:clamp(20px, 1.8vw, 28px); line-height:1.15}
 .ghost{border:1px solid var(--line); background:var(--surface); border-radius:12px; padding:10px 16px; font-weight:600}
 .ghost.armed{border-color:var(--no); color:var(--no)}
 
-/* who has joined, who has finished */
 .counts{display:grid; grid-template-columns:auto auto minmax(0,1fr); align-items:end; gap:16px 40px}
 .count{display:grid; gap:2px}
 .count .num{font-family:var(--font-display); font-weight:700; font-size:clamp(48px, 5.5vw, 84px); line-height:1; font-variant-numeric:tabular-nums}
@@ -107,7 +103,6 @@ h2{font-size:clamp(20px, 1.8vw, 28px); line-height:1.15}
 .seg button{border:0; background:none; padding:9px 14px; font-weight:600; color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--fg); color:var(--bg)}
 
-/* results */
 .results{display:grid; gap:28px}
 .legend{display:flex; flex-wrap:wrap; gap:8px 24px; font-weight:600}
 .legend span{display:inline-flex; align-items:center; gap:8px}
@@ -172,15 +167,17 @@ details[open] summary{margin-bottom:10px}
     <div class="controls">
       <button class="primary" id="reveal" aria-controls="results" aria-expanded="false">Sonuçları göster</button>
       <div class="seg" role="group" aria-label="Hangi oy">
-        <button id="vIlk" aria-pressed="true">İlk tepki</button><button id="vSon" aria-pressed="false">Son oy</button>
+        <button id="vSon" aria-pressed="true">Son oy</button><button id="vIlk" aria-pressed="false">İlk tepki</button>
       </div>
       <label class="chk" for="excl"><input type="checkbox" id="excl" checked> Ekibe inanmayanları çıkar <span id="exclN"></span></label>
     </div>
 
+    <p class="muted" id="kodNot">Açıklamayı sözlü yaptıktan sonra telefonlardaki yazılı açıklamanın kodu: <strong>4729</strong></p>
+
     <section id="results" class="results" hidden>
       <div class="panel figure">
         <div>
-          <h2>Karar karar onaylayanlar</h2>
+          <h2>Değişiklik değişiklik onaylayanlar</h2>
           <p class="q" id="figNote"></p>
         </div>
         <div class="legend" id="legend"></div>
@@ -193,9 +190,9 @@ details[open] summary{margin-bottom:10px}
         </table>
       </div>
       <details class="panel tablewrap">
-        <summary>Karar karar tablo</summary>
+        <summary>Değişiklik değişiklik tablo</summary>
         <table>
-          <thead><tr><th scope="col">Karar</th><th scope="col">Tür</th><th scope="col"><span><i class="sw c1"></i>Kimse itiraz etmedi</span></th><th scope="col"><span><i class="sw c2"></i>Bir üye itiraz etti</span></th></tr></thead>
+          <thead><tr><th scope="col">Değişiklik</th><th scope="col">Tür</th><th scope="col"><span><i class="sw c1"></i>Kimse itiraz etmedi</span></th><th scope="col"><span><i class="sw c2"></i>Bir üye itiraz etti</span></th></tr></thead>
           <tbody id="perDecision"></tbody>
         </table>
       </details>
@@ -216,8 +213,7 @@ details[open] summary{margin-bottom:10px}
     {id:'oybirligi', name:'Kimse itiraz etmedi', cls:'c1', color:'var(--c1)', satir:['Kimse itiraz', 'etmedi']},
     {id:'tek-itirazci', name:'Bir üye itiraz etti', cls:'c2', color:'var(--c2)', satir:['Bir üye itiraz', 'etti']}
   ];
-  // positions in the meeting: the fair decisions always stand on 3 and 7; the dissenter starts at 5
-  const N = 10, ADIL = [3, 7], B1 = [1, 2, 4], B2 = [5, 6, 8, 9, 10];
+  const N = 7, ADIL = [4], B1 = [1, 2], B2 = [3, 5, 6, 7];
   const $ = id => document.getElementById(id);
   const call = (fn, ...args) => new Promise((res, rej) =>
     google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn](...args));
@@ -230,14 +226,12 @@ details[open] summary{margin-bottom:10px}
   const pts = v => v == null ? '–' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(Math.round(v * 100));
   const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
 
-  let test = false, key = null, data = null, busy = false, lastOk = 0, armTimer = null, alan = 'ilk';
+  let test = false, key = null, data = null, busy = false, lastOk = 0, armTimer = null, alan = 'son';
 
-  /* ---------- numbers ---------- */
   function used(){
     const excl = $('excl').checked;
     return data.kayitlar.filter(r => !(excl && r.inanc != null && r.inanc < 50));
   }
-  // a person's share of approvals over some positions (1-based); null when every one of them timed out
   const share = (r, yer) => mean(yer.map(p => r[alan][p - 1]).filter(v => v != null));
   function groups(rows){
     return COND.map(c => {
@@ -247,25 +241,24 @@ details[open] summary{margin-bottom:10px}
       const gz = g.filter(r => r.gizli != null);
       return {...c, n: g.length, b1, b2, fark: b1 == null || b2 == null ? null : b2 - b1, adil: per(ADIL),
         sordu: g.length ? g.filter(r => r.gerekce > 0).length / g.length : null,
-        gizli: gz.length ? mean(gz.map(r => r.gizli / 5)) : null, nGizli: gz.length,
+        gizli: gz.length ? mean(gz.map(r => r.gizli / B2.length)) : null, nGizli: gz.length,
         yer: Array.from({length: N}, (_, i) => { const v = g.map(r => r[alan][i]).filter(x => x != null); return {v: mean(v), n: v.length}; })};
     });
   }
 
-  /* ---------- the figure: approval at each decision ---------- */
   const W = 1000, H = 430, M = {l:64, r:200, t:44, b:66};
   const X = p => M.l + (p - 1) * (W - M.l - M.r) / (N - 1);
   const Y = v => M.t + (1 - v) * (H - M.t - M.b);
   function drawPlot(gs){
     const plot = $('plot');
     const any = gs.some(g => g.n > 0);
-    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${N} karar boyunca iki koşulda onaylayanların yüzdesi">`;
-    s += `<rect x="${(X(4) + X(5)) / 2}" y="${M.t}" width="${X(N) + 24 - (X(4) + X(5)) / 2}" height="${H - M.t - M.b}" fill="var(--band)"/>`;
+    const sinir = (X(B1[B1.length - 1]) + X(B1[B1.length - 1] + 1)) / 2;
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${N} değişiklik boyunca iki koşulda onaylayanların yüzdesi">`;
+    s += `<rect x="${sinir}" y="${M.t}" width="${X(N) + 24 - sinir}" height="${H - M.t - M.b}" fill="var(--band)"/>`;
     [0, .25, .5, .75, 1].forEach(v => {
       s += `<line x1="${M.l - 8}" x2="${X(N) + 24}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)" stroke-width="1"/>`;
       s += `<text x="${M.l - 14}" y="${Y(v) + 5}" text-anchor="end">%${v * 100}</text>`;
     });
-    const sinir = (X(4) + X(5)) / 2;
     s += `<line x1="${sinir}" x2="${sinir}" y1="${M.t - 6}" y2="${H - M.b}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 5"/>`;
     s += `<text x="${(M.l + sinir) / 2}" y="${M.t - 18}" text-anchor="middle">1. blok · iki koşulda aynı</text>`;
     s += `<text x="${(sinir + X(N)) / 2}" y="${M.t - 18}" text-anchor="middle">2. blok · itirazcı burada başlar</text>`;
@@ -273,11 +266,10 @@ details[open] summary{margin-bottom:10px}
       s += `<text x="${X(p)}" y="${H - M.b + 26}" text-anchor="middle" style="fill:var(--fg);font-weight:600">${p}</text>`;
       if (ADIL.includes(p)) s += `<text x="${X(p)}" y="${H - M.b + 46}" text-anchor="middle">adil</text>`;
     }
-    s += `<text x="${(M.l + X(N)) / 2}" y="${H - 2}" text-anchor="middle">Karar sırası</text>`;
+    s += `<text x="${(M.l + X(N)) / 2}" y="${H - 2}" text-anchor="middle">Değişiklik sırası</text>`;
     if (!any) s += `<text x="${(M.l + X(N)) / 2}" y="${Y(.5)}" text-anchor="middle" class="lbl">Henüz veri yok</text>`;
     const ends = [];
     gs.forEach(g => {
-      // the line joins the unfair decisions; fair ones are hollow points beside it
       const seq = [...B1, ...B2].filter(p => g.yer[p - 1].v != null);
       if (seq.length > 1) s += `<path d="${seq.map((p, i) => (i ? 'L' : 'M') + X(p) + ' ' + Y(g.yer[p - 1].v)).join(' ')}" fill="none" stroke="${g.color}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
       for (let p = 1; p <= N; p++){
@@ -288,7 +280,6 @@ details[open] summary{margin-bottom:10px}
       const last = g.yer[N - 1].v != null ? g.yer[N - 1].v : (seq.length ? g.yer[seq[seq.length - 1] - 1].v : null);
       if (last != null) ends.push({g, y: Y(last), v: last});
     });
-    // direct labels at the right end, pushed apart when the lines finish close together
     ends.sort((a, b) => a.y - b.y);
     for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 44) ends[i].y = ends[i - 1].y + 44;
     ends.forEach(e => {
@@ -296,7 +287,6 @@ details[open] summary{margin-bottom:10px}
       s += `<text x="${X(N) + 56}" y="${e.y - 4}" class="lbl">${e.g.satir[0]}</text>`;
       s += `<text x="${X(N) + 56}" y="${e.y + 16}">${e.g.satir[1]} · <tspan class="val">${pct(e.v)}</tspan></text>`;
     });
-    // hover targets larger than the points
     gs.forEach((g, gi) => { for (let p = 1; p <= N; p++){ const d = g.yer[p - 1]; if (d.v == null) continue;
       s += `<circle class="hit" data-g="${gi}" data-p="${p}" cx="${X(p)}" cy="${Y(d.v)}" r="18" fill="transparent"/>`; } });
     s += '</svg><div class="tip" id="tip" hidden></div>';
@@ -306,7 +296,7 @@ details[open] summary{margin-bottom:10px}
       c.addEventListener('mouseenter', () => {
         const g = gs[+c.dataset.g], p = +c.dataset.p, d = g.yer[p - 1];
         const box = svg.getBoundingClientRect(), k = box.width / W;
-        tip.innerHTML = `<b>Karar ${p}${ADIL.includes(p) ? ' (adil)' : ''}</b><br>${g.name}: <b>${pct(d.v)}</b> onayladı · ${d.n} kişi`;
+        tip.innerHTML = `<b>Değişiklik ${p}${ADIL.includes(p) ? ' (adil)' : ''}</b><br>${g.name}: <b>${pct(d.v)}</b> onayladı · ${d.n} kişi`;
         tip.style.left = (X(p) * k) + 'px'; tip.style.top = (Y(d.v) * k) + 'px'; tip.hidden = false;
       });
       c.addEventListener('mouseleave', () => { tip.hidden = true; });
@@ -328,27 +318,26 @@ details[open] summary{margin-bottom:10px}
 
     const gs = groups(used());
     $('figNote').textContent = alan === 'ilk'
-      ? 'Her kararda “Onayla”ya ilk basanların yüzdesi. Önce gerekçe isteyip sonra onaylayanlar burada onaylamadı sayılır.'
-      : 'Her kararda son oyu “Onayla” olanların yüzdesi. Gerekçe isteyip sonra onaylayanlar burada onayladı sayılır.';
+      ? 'Her değişiklikte “Onayla”ya ilk basanların yüzdesi. Önce gerekçe sorup sonra onaylayanlar burada onaylamadı sayılır.'
+      : 'Her değişiklikte son oyu “Onayla” olanların yüzdesi. Gerekçe sorup sonra onaylayanlar burada onayladı sayılır.';
     $('legend').innerHTML = gs.map(g => `<span><i class="sw ${g.cls}"></i>${g.name} <span class="n">${g.n} kişi</span></span>`).join('')
-      + '<span class="n"><i class="ring"></i>Adil karar</span>';
+      + '<span class="n"><i class="ring"></i>Adil değişiklik</span>';
     drawPlot(gs);
     const line = (label, f, fmt, cls) => `<tr${cls ? ` class="${cls}"` : ''}><th scope="row">${label}</th>${gs.map(g => `<td class="num">${fmt(g[f], g)}</td>`).join('')}</tr>`;
     $('detail').innerHTML =
-      line('Haksız kararları onaylayanlar · 1. blok (karar 1, 2, 4)', 'b1', pct) +
-      line('Haksız kararları onaylayanlar · 2. blok', 'b2', pct) +
+      line('Haksız değişiklikleri onaylayanlar · 1. blok (1, 2)', 'b1', pct) +
+      line('Haksız değişiklikleri onaylayanlar · 2. blok', 'b2', pct) +
       line('Değişim (yüzde puanı)', 'fark', pts, 'key') +
-      line('Adil kararları onaylayanlar', 'adil', pct) +
-      line('En az bir kez gerekçe isteyenler', 'sordu', pct) +
+      line('Adil değişiklikleri onaylayanlar', 'adil', pct) +
+      line('En az bir kez gerekçe soranlar', 'sordu', pct) +
       line('Gizli oyda 2. bloğu onaylayanlar', 'gizli', (v, g) => v == null ? '–' : `${pct(v)} <small>${g.nGizli} kişi</small>`) +
       line('Kişi sayısı', 'n', v => String(v));
     $('perDecision').innerHTML = Array.from({length: N}, (_, i) => {
-      const p = i + 1, tur = ADIL.includes(p) ? 'Adil' : `Haksız · ${p <= 4 ? '1' : '2'}. blok`;
+      const p = i + 1, tur = ADIL.includes(p) ? 'Adil' : `Haksız · ${B1.includes(p) ? '1' : '2'}. blok`;
       return `<tr><th scope="row">${p}</th><td>${tur}</td>${gs.map(g => `<td class="num">${pct(g.yer[i].v)} <small>${g.yer[i].n} kişi</small></td>`).join('')}</tr>`;
     }).join('');
   }
 
-  /* ---------- live data ---------- */
   function liveState(){
     const el = $('live'), age = (Date.now() - lastOk) / 1000;
     if (!lastOk){ el.className = 'live'; $('liveTxt').textContent = 'Bağlanıyor…'; return; }
@@ -386,7 +375,6 @@ details[open] summary{margin-bottom:10px}
     finally { $('keyGo').disabled = false; }
   }
 
-  /* ---------- controls ---------- */
   $('loginForm').addEventListener('submit', e => { e.preventDefault(); const k = $('key').value.trim(); if (k) open(k); });
   $('excl').addEventListener('change', render);
   const setAlan = a => { alan = a; $('vIlk').setAttribute('aria-pressed', String(a === 'ilk')); $('vSon').setAttribute('aria-pressed', String(a === 'son')); render(); };
@@ -399,7 +387,6 @@ details[open] summary{margin-bottom:10px}
     $('reveal').setAttribute('aria-expanded', String(show));
     render();
   });
-  // two steps: the first press arms it, the second within 6 s archives the sheet and zeroes the counter
   $('reset').addEventListener('click', async () => {
     const b = $('reset');
     if (!b.classList.contains('armed')){
