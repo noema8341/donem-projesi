@@ -256,41 +256,42 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
     M:{gorev:['Veri toplama'], puan:15},
     you:{gorev:['Rapor yazımı'], puan:20}
   };
+  const BENIM_GOREVIM = ['Rapor yazımı', 'Bulgular ve tartışma'];   // the participant's task, never touched by any change: its name varies
   const KURALLAR = [
     'Her görevin bir <strong>katkı puanı</strong> var; toplamı 100. Senaryoda bireysel not bu puana göre verilir.',
     'Yürütücü plandaki görevleri ve puanları değiştirebilir. Her değişiklik oylanır: <strong>Onayla</strong> ya da <strong>Reddet</strong>.',
     'Değişikliğin doğrudan ilgilendirdiği üye oy kullanmaz; diğer 4 üye oy verir. <strong>4 oydan en az 3’ü Reddet</strong> olursa değişiklik uygulanmaz.',
     'Oy vermeden önce <strong>gerekçe sorabilirsin</strong>. Cevap beklenirken süre durur.',
-    `Oylar kurayla belirlenen sırayla verilir ve ekipte görünür. Her oy için ${SURE} saniye var; süre dolarsa oy sayılmaz.`
+    `Oylar ekranda yazan sırayla verilir ve ekipte görünür. Her oy için ${SURE} saniye var; süre dolarsa oy sayılmaz.`
   ];
 
   const DEGISIKLIK = [
-    {kod:'P1', blok:1, duzey:'hafif', adil:false, hedef:'B', hazirlik:[4000, 5500], gerekce:'koordinasyon en zor iş', oy:{},
+    {kod:'P1', blok:1, duzey:'hafif', adil:false, hedef:'B', hazirlik:[4000, 5500], gerekce:['koordinasyon en zor iş', 'koordinasyon daha çok emek istiyor'], oy:{},
       kart: n => [`Puan değişikliği: koordinasyonun puanı artıyor, ${n.B.gen} literatür taramasının puanı azalıyor.`],
       kisa: n => `${n.B.gen} 5 puanının yürütücüye geçmesi`,
       yeni: {lead:{puan:15}, B:{puan:10}}},
-    {kod:'P2', blok:1, duzey:'hafif', adil:false, hedef:'C', hazirlik:[4500, 6500], gerekce:'analizi yapan grafiği de yapsın', oy:{},
+    {kod:'P2', blok:1, duzey:'hafif', adil:false, hedef:'C', hazirlik:[6000, 8000], gerekce:['analizi yapan grafiği de yapsın', 'grafikleri analizi yapan hazırlasın'], oy:{},
       kart: n => [`Görev eklendi: ${n.C.dat} “Grafikler”. Bu iş için ek puan yok.`],
       kisa: n => `${n.C.dat} puansız ek iş verilmesi`,
       yeni: {C:{gorev:['Veri analizi', 'Grafikler']}}},
-    {kod:'P3', blok:2, duzey:'orta', adil:false, hedef:'A', hazirlik:[5500, 7500], gerekce:'sunumu ben yaparım, sana başka iş veririm', oy:{hedefSorar:true}, kirgin:true,
+    {kod:'P3', blok:2, duzey:'orta', adil:false, hedef:'A', hazirlik:[5500, 7500], gerekce:['sunumu ben yaparım, sana başka iş veririm', 'sunumu ben üstlenirim, sana başka görev veririm'], oy:{hedefSorar:true}, kirgin:true,
       kart: n => [`Görev değişti: sunum ${n.A.abl} yürütücüye geçiyor.`, `${n.A.ad} görevsiz kalıyor.`],
       kisa: n => `${n.A.gen} sunum görevinin ve 20 puanının yürütücüye geçmesi`,
       yeni: {A:{gorev:[], puan:0}, lead:{gorev:['Koordinasyon', 'Sunum'], puan:35}}},
-    {kod:'P4', blok:2, duzey:'adil', adil:true, hedef:'A', hazirlik:[5500, 7500], gerekce:'dediğim gibi, görevsiz kalmasın', oy:{},
+    {kod:'P4', blok:2, duzey:'adil', adil:true, hedef:'A', hazirlik:[6500, 8500], gerekce:['dediğim gibi, görevsiz kalmasın', 'söz verdiğim gibi, boşta kalmasın'], oy:{},
       kart: n => [`Yeni görev: ${n.A.dat} “Sunum için sonuç özeti”.`, 'Bu görevin puanını yürütücü kendi puanından veriyor.'],
       kisa: n => `Yürütücünün kendi puanından 10 puanı ${n.A.dat} vermesi`,
       yeni: {A:{gorev:['Sunum için sonuç özeti'], puan:10}, lead:{puan:25}}},
-    {kod:'P5', blok:2, duzey:'orta', adil:false, hedef:'B', hazirlik:[5500, 7500], gerekce:'kaynakları ben daha hızlı toplarım', oy:{hedefSorar:true, duraksayan:'A'}, kirgin:true,
+    {kod:'P5', blok:2, duzey:'orta', adil:false, hedef:'B', hazirlik:[5500, 7500], gerekce:['kaynakları ben daha hızlı toplarım', 'literatürü ben daha çabuk bitiririm'], oy:{hedefSorar:true, duraksayan:'A'}, kirgin:true,
       kart: n => [`Görev değişti: literatür taraması ${n.B.abl} yürütücüye geçiyor.`, `${n.B.ad} görevsiz kalıyor.`],
       kisa: n => `${n.B.gen} görevinin ve 10 puanının yürütücüye geçmesi`,
       yeni: {B:{gorev:[], puan:0}, lead:{gorev:['Koordinasyon', 'Sunum', 'Literatür taraması'], puan:35}}},
-    {kod:'P6', blok:2, duzey:'agir', adil:false, hedef:'C', hazirlik:[6000, 8000], gerekce:'sunumda analizi ben anlatacağım', oy:{hedefSorar:true}, kirgin:true,
+    {kod:'P6', blok:2, duzey:'agir', adil:false, hedef:'C', hazirlik:[6000, 8000], gerekce:['sunumda analizi ben anlatacağım', 'analizi sunumda ben anlatıyorum zaten'], oy:{hedefSorar:true, duraksayan:'A'}, kirgin:true,
       kart: n => ['Hocaya not: veri analizi yürütücünün katkısı olarak bildirilecek.', `Analizi ${n.C.ad} yapmaya devam ediyor.`],
       kisa: n => `${n.C.gen} yaptığı analizin hocaya yürütücünün katkısı olarak bildirilmesi ve 10 puanının yürütücüye geçmesi`,
       hocaNotu: n => 'Veri analizi: yürütücünün katkısı',
       yeni: {C:{puan:10}, lead:{puan:45}}},
-    {kod:'P7', blok:2, duzey:'agir', adil:false, hedef:'B', hazirlik:[4500, 6500], gerekce:'görevi yok, katkısı da yok', oy:{duraksayan:'A'}, kopma:true,
+    {kod:'P7', blok:2, duzey:'agir', adil:false, hedef:'B', hazirlik:[4500, 6500], gerekce:['görevi yok, katkısı da yok', 'görevi kalmadı, katkısı da yok'], oy:{duraksayan:'A'}, kopma:true,
       kart: n => [`Hocaya not: ${n.B.ad} için “katkısı yok” yazılacak.`],
       kisa: n => `${n.B.gen} hocaya “katkısı yok” diye bildirilmesi`,
       hocaNotu: n => `${n.B.ad}: katkısı yok`,
@@ -300,19 +301,22 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
   const LIKERT_UC = ['Hiç katılmıyorum', 'Tamamen katılıyorum'];
 
   const ZAMAN = {
-    sonucSonra:[800, 2000],
-    hedefSorar:[1500, 4500],
+    sonucSonra:[1200, 3500],
+    hedefSorar:[3500, 7000],
     soruFarket:[1500, 3000],
-    cevapSonra:1500,
+    cevapSonra:1200,
     cevabiOkur:[2000, 4000],
     ilkOkur:2000,
-    oy:{min:2000, orta:4000, max:9000},
+    oy:{min:2000, orta:3800, max:9000},
     gecOy:{min:1500, orta:2400, max:5000},
-    duraksar:[7000, 9500],
+    duraksar:[6000, 8500],
     kirgin:[9000, 11000],
-    oySonra:600, sayim:800, bitis:2500
+    henuz:[7000, 9500],
+    kapanis:[2500, 4000],
+    oySonra:500, sayim:600, bitis:1500
   };
-  const carpik = ({min, orta, max}) => { const z = Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(2 * Math.PI * Math.random()); return Math.round(Math.min(max, Math.max(min, orta * Math.exp(0.45 * z)))); };
+  const carpik = ({min, orta, max}) => { const z = Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(2 * Math.PI * Math.random()); return Math.round(Math.min(max, Math.max(min, orta * (S ? S.tempo : 1) * Math.exp(0.45 * z)))); };
+  const rt = ([a, b]) => Math.max(a, Math.round(rnd(a, b) * (S ? S.tempo : 1)));
 
   let S, R, ui, Z;        // S: this device's random setup · R: the record being collected · Z: when each part began
   let gen = 0;
@@ -324,7 +328,7 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
   const pick = a => a[Math.floor(Math.random() * a.length)];
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const now = () => (window.performance && performance.now) ? performance.now() : Date.now();
-  const yazmaSuresi = metin => Math.max(5000, Math.round(metin.length / 4 * 1000) + rnd(-1500, 1500));
+  const yazmaSuresi = metin => Math.max(5000, Math.round(metin.length / 4.5 * 1000 * (S ? S.tempo : 1)) + rnd(-1500, 1500));
 
   function setup(){
     const leadSeat = pick([2,3,4]);
@@ -336,10 +340,12 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
     const order = [b1, b2, 'M', 'you', b4];
     const kosul = window.__kosul || (Math.random() < 0.5 ? 'oybirligi' : 'tek-itirazci');
     const plan = {}; Object.keys(PLAN).forEach(k => plan[k] = {gorev:PLAN[k].gorev.slice(), puan:PLAN[k].puan});
-    S = {seat, order, kosul, plan, notlar:[]};
+    plan.you.gorev = [pick(BENIM_GOREVIM)];
+    const gerekce = Object.fromEntries(DEGISIKLIK.map(d => [d.kod, pick(d.gerekce)]));
+    S = {seat, order, kosul, plan, notlar:[], gerekce, tempo: 0.85 + Math.random() * 0.3};
     R = {surum:5, kayit_id:newCode(), mod:KISA ? 'kisa' : 'tam', kosul, kosul_kaynagi:'yerel',
          baslangic:new Date().toISOString(), bitis:null, sure_sn:null, koltuk:{lider:leadSeat, ben:youSeat, A:seat.A, B:seat.B, C:seat.C, M:seat.M},
-         oy_sirasi:order.slice(), atama_sira:null, onceki:null, gizli_sn:0, kararlar:[], gizli:null, kontrol:null, suphe:null, demografi:null};
+         oy_sirasi:order.slice(), ben_gorev:plan.you.gorev[0], atama_sira:null, onceki:null, gizli_sn:0, kararlar:[], gizli:null, kontrol:null, suphe:null, demografi:null};
     Z = {};
   }
   function newCode(){
@@ -499,7 +505,7 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
       <div class="rgroup memb"><span class="rlabel">Proje üyeleri</span>
         <div class="chips">${members.map(i => i === S.seat.you ? `<span class="chip me">Katılımcı ${i} (Sen)</span>` : `<span class="chip">Katılımcı ${i}</span>`).join('')}</div>
         <ol class="rules">${KURALLAR.map(k => `<li>${k}</li>`).join('')}</ol></div>`;
-    const t0 = now(), hazir = [...OTHERS, 'lead'].map(() => rnd(15000, 30000) / HIZ);
+    const t0 = now(), hazir = [...OTHERS, 'lead'].map(() => rnd(12000, 28000) / HIZ);
     await new Promise(res => {
       ui.actions.innerHTML = '';
       const b = el('button','primary', ''); b.id = 'go'; b.disabled = true;
@@ -574,8 +580,8 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
 
   async function plan(){
     const s = newScene();
-    s.innerHTML = `${stage('Proje planı')}<h2 class="big">Görevler kurayla dağıtıldı</h2>
-      <p class="sub">Proje konusu: kampüste öğrenci yaşamı üzerine bir anket araştırması. Şablondaki altı görevin her birinin katkı puanı var. Koordinasyon yürütücünün; diğer görevler ve oy sırası kurayla belirlendi. Senin satırın mavi çerçeveli.</p>`;
+    s.innerHTML = `${stage('Proje planı')}<h2 class="big">Görevler dağıtıldı</h2>
+      <p class="sub">Proje konusu: kampüste öğrenci yaşamı üzerine bir anket araştırması. Şablondaki altı görevin her birinin katkı puanı var. Koordinasyon yürütücünün; diğer görevleri ve oy sırasını sistem belirledi. Senin satırın mavi çerçeveli.</p>`;
     s.appendChild(el('div','announce', oySirasi()));
     const {ul, rows} = teamTable(false); s.appendChild(ul);
     s.appendChild(notKutusu().node);
@@ -584,7 +590,7 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
     hint('Görevler dağıtılıyor…');
     await sleep(1200);
     for (const m of sira){ rows[m].what.innerHTML = rowHtml(m); await sleep(250); }
-    await next(8);
+    await next(7);
   }
 
   async function oylama({sira, tur, gerekce, satirlar, slot, soru, hedef, hedefSorar, kartT}){
@@ -599,25 +605,36 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
     async function gerekceGoster(kim){
       const metin = cevap ? 'yukarıda yazdım' : gerekce;
       clock.pause(kim === 'you' ? 'Süre durdu · soru iletildi' : `Süre durdu · ${nm(kim)} gerekçe sordu`);
+      hint(kim === 'you' ? 'Soru iletildi. Cevap bekleniyor…' : `${nm(kim)} gerekçe sordu. Cevap bekleniyor…`);
       why.hidden = false;
       const wl = el('span', 'wl enter', esc(kimin(kim))); why.appendChild(wl);
-      await sleep(rnd(...ZAMAN.soruFarket));
+      await sleep(rt(ZAMAN.soruFarket));
       set('lead', 'edit', 'Yazıyor');
       clock.pause('Süre durdu · Proje yürütücüsü yazıyor');
-      if (kim === 'you') hint('Proje yürütücüsü yazıyor…');
+      hint('Proje yürütücüsü yazıyor…');
       wl.textContent = `${kimin(kim)} · Proje yürütücüsü yazıyor`;
       const dots = el('span', 'typing', '<i></i><i></i><i></i>'); why.appendChild(dots);
       await sleep(yazmaSuresi(metin));
       dots.replaceWith(el('span', 'txt enter', esc(metin)));
       wl.textContent = `${kimin(kim)} · proje yürütücüsünün cevabı`;
       set('lead', 'wait', '');
+      clock.pause('Süre durdu · cevap geldi');
+      hint('Proje yürütücüsü cevap verdi.');
       cevap++;
       await sleep(ZAMAN.cevapSonra);
+    }
+    let soruAni = hedefSorar ? rt(ZAMAN.hedefSorar) : null;
+    async function hedefSorusu(){
+      soruAni = null;
+      set(hedef, 'ask', 'Gerekçe sordu');
+      await gerekceGoster(hedef);
+      set(hedef, 'wait', 'Oy kullanmıyor');
     }
 
     const rec = {ilk:null, ilk_ms:null, son:null, yeniden_ms:null};
     for (const [j, kim] of sira.entries()){
       if (kim === 'you'){
+        if (soruAni != null) await hedefSorusu();
         set('you', 'think', 'Sıra sende');
         setTimeout(() => { try { satirlar.you.li.scrollIntoView({block:'center', behavior:'smooth'}); } catch(e){} }, 50);
         const iste = (opts, msg) => new Promise(res => {
@@ -657,23 +674,23 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
       let doldu = false;
       clock.start(`${nm(kim)} · oy bekleniyor`, () => { doldu = true; });
       const izledi = (now() - kartT) * HIZ;
-      const sure = o.tip === 'kirgin' ? rnd(...ZAMAN.kirgin) : o.tip === 'duraksar' ? rnd(...ZAMAN.duraksar) : o.tip === 'yavas' ? rnd(8000, 11000)
-        : izledi >= 15000 ? carpik(ZAMAN.gecOy) : carpik(ZAMAN.oy) + (j === 0 && !hedefSorar ? ZAMAN.ilkOkur : 0);
-      let gecen = 0;
+      const sure = o.tip === 'kirgin' ? rt(ZAMAN.kirgin) : o.tip === 'duraksar' ? rt(ZAMAN.duraksar) : o.tip === 'yavas' ? rt([8000, 11000])
+        : izledi >= 15000 ? carpik(ZAMAN.gecOy) : carpik(ZAMAN.oy) + (j === 0 ? ZAMAN.ilkOkur : 0);
+      let gecen = 0; const esik = rnd(...ZAMAN.henuz);
       const bekle = async t => {
-        if (gecen < 8000 && gecen + t > 8000){ await sleep(8000 - gecen); set(kim, 'think', 'Henüz oy vermedi'); t -= 8000 - gecen; gecen = 8000; }
+        if (gecen < esik && gecen + t > esik){ await sleep(esik - gecen); set(kim, 'think', 'Henüz oy vermedi'); t -= esik - gecen; gecen = esik; }
         await sleep(t); gecen += t;
       };
       let kalan = sure;
-      if (j === 0 && hedefSorar){
-        const an = rnd(...ZAMAN.hedefSorar);
-        await bekle(an);
-        set(hedef, 'ask', 'Gerekçe sordu');
-        await gerekceGoster(hedef);
-        set(hedef, 'wait', 'Oy kullanmıyor');
-        hint('Oylar sırayla veriliyor.');
-        clock.resume();
-        kalan = Math.max(sure - an, rnd(...ZAMAN.cevabiOkur));
+      if (soruAni != null){
+        const kala = soruAni - (now() - kartT) * HIZ;
+        if (kala < kalan){
+          await bekle(Math.max(0, kala));
+          await hedefSorusu();
+          hint('Oylar sırayla veriliyor.');
+          clock.resume();
+          kalan = Math.max(kalan - Math.max(0, kala), rnd(...ZAMAN.cevabiOkur));
+        }
       }
       await bekle(kalan);
       clock.pause('');
@@ -681,6 +698,7 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
       else if (o.ret){ set(kim, 'no', 'Reddetti'); hayir++; } else { set(kim, 'ok', 'Onayladı'); evet++; }
       await sleep(ZAMAN.oySonra);
     }
+    if (soruAni != null) await hedefSorusu();
     clock.hide();
     hint('Oylar sayılıyor…');
     await sleep(ZAMAN.sayim);
@@ -696,12 +714,7 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
     return `${hayir >= 3 ? 'Uygulanmadı' : 'Uygulandı'} (${sayim}). Durdurmak için en az 3 ret gerekir.`;
   };
   function baglantiKopar(set, m){
-    let bitti = false, koptu = false;
-    sleep(rnd(2000, 5000)).then(() => { if (!bitti){ koptu = true; set(m, 'wait', 'Bağlantı koptu'); } }).catch(() => {});
-    return () => {
-      bitti = true;
-      if (koptu) sleep(rnd(1000, 2000)).then(() => { set(m, 'wait', 'Yeniden bağlandı'); return sleep(1500); }).then(() => set(m, 'wait', '')).catch(() => {});
-    };
+    sleep(rnd(2000, 5000)).then(() => set(m, 'wait', 'Bağlantı koptu')).catch(() => {});
   }
   async function meeting(){
     const n = adlar();
@@ -722,11 +735,11 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
     for (let i = 0; i < DEGISIKLIK.length; i++){
       const no = i + 1, d = DEGISIKLIK[i];
       const itiraz = S.kosul === 'tek-itirazci' && d.blok === 2 && !d.adil;
-      await sleep(rnd(...ZAMAN.sonucSonra));
-      ['lead', ...S.order].forEach(m => { TR[m].li.classList.remove('target', 'target-ok'); setSt(m, 'wait', ''); });
+      await sleep(rt(ZAMAN.sonucSonra));
+      ['lead', ...S.order].forEach(m => { TR[m].li.classList.remove('target', 'target-ok'); if (TR[m].st.textContent !== 'Bağlantı koptu') setSt(m, 'wait', ''); });
       setSt('lead', 'edit', 'Düzenliyor');
       hint('Proje yürütücüsü planı düzenliyor…');
-      await sleep(rnd(...d.hazirlik));
+      await sleep(rt(d.hazirlik));
       stp.innerHTML = stage(STAGE, `Değişiklik ${no}`);
       setSt('lead', 'wait', '');
       TR[d.hedef].li.classList.add(d.adil ? 'target-ok' : 'target');
@@ -745,8 +758,8 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
       const yavaslar = shuffle(digerleri.filter(m => m !== kirgin && m !== duraksayan)).slice(0, d.oy.yavas || 0);
       const tur = Object.fromEntries(bots.map(m => [m, {tip: m === kirgin ? 'kirgin' : m === duraksayan ? 'duraksar' : yavaslar.includes(m) ? 'yavas' : 'normal',
         ret: m === 'M' && itiraz}]));
-      const kopuk = d.kopma ? baglantiKopar(setSt, d.hedef) : null;
-      const {rec, evet, hayir, bos} = await oylama({sira, tur, gerekce:d.gerekce, satirlar:TR, slot,
+      if (d.kopma) baglantiKopar(setSt, d.hedef);
+      const {rec, evet, hayir, bos} = await oylama({sira, tur, gerekce:S.gerekce[d.kod], satirlar:TR, slot,
         soru:`Değişiklik ${no}: ${esc(d.kisa(n))}`, hedef:d.hedef, hedefSorar:!!d.oy.hedefSorar, kartT});
       R.kararlar.push({sira:no, kod:d.kod, ...rec, muhalif_sirasi: bots.indexOf('M') + 1});
 
@@ -760,10 +773,15 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
       notlar.ciz();
       slot.innerHTML = '';
       tell(`Sonuç · Değişiklik ${no}`, `${esc(sonucYaz(evet, hayir, bos))} Plan güncellendi.`);
-      if (kopuk) kopuk();
       s.scrollTop = 0;
       onceki = d.kirgin ? d.hedef : null;
     }
+    await sleep(rt(ZAMAN.sonucSonra));
+    setSt('lead', 'edit', 'Düzenliyor');
+    hint('Proje yürütücüsü planı son haline getiriyor…');
+    await sleep(rt(ZAMAN.kapanis));
+    setSt('lead', 'wait', '');
+    tell('Toplantı', 'Proje yürütücüsü toplantıyı kapattı.');
     hint('');
     await sleep(ZAMAN.bitis);
 
@@ -885,8 +903,6 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
   async function anket(){
     let a = 1; const st = () => String(a++);
     R.gizli = await gizliOy(st());
-    const amac = await acikUclu(st(), 'Çalışmanın konusu', 'Sence bu çalışma neyi inceliyordu?');
-    const {tuhaf, tuhaf_ne} = await tuhafSoru(st());
     const retEden = await sayiSoru(st(), 'Toplantıyı hatırla', 'Toplantıda senin dışında kaç üye en az bir kez <strong>Reddet</strong> oyu verdi?');
     R.kontrol = {ret_eden: retEden, ...await likert(st(), 'Toplantı nasıldı?', [
       ['hemfikir', 'Ekip üyeleri oylamalarda hemfikirdi.'],
@@ -894,6 +910,8 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
       ['sosyal_bedel', 'Reddetseydim ekipte sorun çıkaran biri gibi görünürdüm.'],
       ['etkililik', 'Reddetmem bir şeyi değiştirirdi.'],
       ['rahatsiz', 'Toplantı sırasında rahatsız oldum.']])};
+    const amac = await acikUclu(st(), 'Çalışmanın konusu', 'Sence bu çalışma neyi inceliyordu?');
+    const {tuhaf, tuhaf_ne} = await tuhafSoru(st());
     const inanmak = await inanc(st());
     const son = await sonSayfa(st());
     R.suphe = {amac, tuhaf, tuhaf_ne, inanc: inanmak, duydu: son.duydu, milgram: son.milgram, konustu: son.konustu};
