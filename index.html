@@ -15,8 +15,8 @@
   if (yerel && q.get('hiz')) window.__hiz = Number(q.get('hiz'));   // speeds the flow up, only when tested on this computer
   const post = govde => fetch(API, {method: 'POST', credentials: 'omit', headers: {'Content-Type': 'text/plain;charset=utf-8'}, body: JSON.stringify(govde)});
   const istek = (fn, args) => {
-    if (fn === 'kosulAl') return fetch(API + '?api=kosul' + (args[0] ? '&test=1' : ''), {credentials: 'omit', cache: 'no-store'});
-    if (fn === 'kaydet') return post({api: 'kaydet', kayit: args[0], test: !!args[1]});
+    if (fn === 'kosulAl') return fetch(API + '?api=kosul' + (args[0] ? '&test=1' : '') + (args[1] === 'kisa' ? '&mod=kisa' : ''), {credentials: 'omit', cache: 'no-store'});
+    if (fn === 'kaydet' || fn === 'kaydetEk') return post({api: fn, kayit: args[0], test: !!args[1]});
     if (fn === 'ozet' || fn === 'yeniOturum') return post({api: fn, anahtar: args[0], test: !!args[1]});
     return Promise.reject(new Error('bilinmeyen işlem: ' + fn));
   };
@@ -37,9 +37,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: one focused scene at a time — the stage name, one big sentence, the list it concerns, a countdown or choice buttons at the bottom.
-   Nobody writes anything: the system announces every step, the others show up only as a number, a vote and the time they took.
-   Colour meaning: orange = the project lead and the lead's actions · blue = system information and your own role · red = the member a decision is about. */
 :root{
   --bg:#F4F5F9; --surface:#FFFFFF; --surface-2:#ECEEF4; --line:#D9DCE6;
   --fg:#161925; --muted:#596074; --accent:#3346C8; --accent-fg:#FFFFFF; --accent-soft:#E4E8FC;
@@ -78,7 +75,6 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px soli
 .stage span{color:var(--muted)}
 .rlabel{font-size:12.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
 
-/* bottom area */
 .actions{padding-block:10px 12px; display:grid; gap:10px; border-top:1px solid var(--line)}
 .actions:empty{border-top:0; padding-block:0}
 .actions .hint{font-size:15px; color:var(--muted); text-align:center}
@@ -101,7 +97,6 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px soli
 .btns .plain{background:var(--surface); border:1px solid var(--line)}
 .btns .primary{background:var(--accent); color:var(--accent-fg)}
 
-/* connection seats */
 .seats{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:16px 10px; width:100%; max-width:320px}
 .seat{display:grid; justify-items:center; gap:6px; font-size:13px; color:var(--muted)}
 .seat .ring{width:56px; height:56px; border-radius:50%; border:2px dashed var(--line); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:18px; transition:all .3s}
@@ -109,7 +104,6 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px soli
 .seat.me .ring{border-width:3px}
 .status{font-weight:600; font-size:16px; color:var(--muted); min-height:3em; max-width:32ch}
 
-/* role boxes */
 .roles{display:grid; gap:10px; width:100%; text-align:left}
 .rgroup{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 16px; display:grid; gap:4px}
 .rgroup.lead{border-color:var(--lead); background:var(--lead-soft)}
@@ -127,7 +121,6 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px soli
 .rules{margin:4px 0 0; padding-left:1.3em; display:grid; gap:8px}
 .rules li::marker{color:var(--accent); font-weight:700}
 
-/* announcements: blue = information, orange = the lead's action */
 .announce{background:var(--accent-soft); border-radius:14px; padding:12px 14px; display:grid; gap:4px; font-size:15.5px; text-align:left; width:100%}
 .announce .rlabel{color:var(--accent)}
 .announce.lead{background:var(--lead-soft)}
@@ -137,7 +130,6 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px soli
 .notice .big{font-size:23px}
 .notice .sub{color:var(--fg)}
 
-/* people list */
 .list{display:grid; gap:8px; margin:0; padding:0; list-style:none}
 .list li{display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:11px 14px; min-width:0}
 .list li.me{border-color:var(--accent); border-width:2px}
@@ -160,7 +152,6 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px soli
 .st.think{color:var(--accent); background:var(--accent-soft)}
 .st.ok{color:var(--ok); background:var(--ok-soft)} .st.no{color:var(--no); background:var(--no-soft)} .st.ask{color:var(--accent); background:var(--accent-soft)}
 
-/* countdown */
 .slot{display:grid; gap:10px}
 .slot:empty{display:none}
 .clock{display:flex; align-items:center; gap:14px; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:10px 14px}
@@ -179,7 +170,6 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px soli
 .typing i:nth-child(2){animation-delay:.15s} .typing i:nth-child(3){animation-delay:.3s}
 @keyframes blink{0%,100%{opacity:.25}50%{opacity:.9}}
 
-/* questionnaire */
 .items{display:grid; gap:22px}
 .item{display:grid; gap:8px}
 .item .q{font-weight:600}
@@ -219,6 +209,23 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
 .enter{animation:rise .3s ease-out}
 @keyframes rise{from{transform:translateY(8px); opacity:.3}to{transform:none; opacity:1}}
 @media (prefers-reduced-motion: reduce){ .enter,.typing i{animation:none} .seat .ring,.autobtn i{transition:none} }
+.list .pts{font-variant-numeric:tabular-nums; font-weight:700; color:var(--fg)}
+.list s{opacity:.55}
+.down{color:var(--no); font-weight:700}
+.up{color:var(--ok); font-weight:700}
+.none{color:var(--muted); font-style:italic}
+.list li.target-ok{border-color:var(--ok); border-width:2px; background:var(--ok-soft)}
+.st.edit{color:var(--lead); background:var(--lead-soft)}
+.announce .puan{font-weight:700; font-variant-numeric:tabular-nums}
+.notes{background:var(--surface); border:1px dashed var(--line); border-radius:14px; padding:11px 14px; display:grid; gap:4px; font-size:15px}
+.notes ul{margin:0; padding-left:1.2em}
+.rulebox{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:10px 14px; font-size:15px}
+.rulebox summary{cursor:pointer; font-weight:700; color:var(--accent)}
+.altlinks{display:flex; justify-content:center; gap:4px; flex-wrap:wrap}
+.seat.lead .ring{border-style:solid; border-color:var(--lead); background:var(--lead-soft); color:var(--lead)}
+.announce .dim{color:var(--muted)}
+.why .txt + .txt{font-size:16px; color:var(--muted)}
+.kodgir{width:100%; border:1px solid var(--line); border-radius:12px; background:var(--surface); padding:10px 12px; font-size:24px; font-weight:700; letter-spacing:.3em; text-align:center}
 </style>
 
 <div class="app" id="app"></div>
@@ -226,69 +233,88 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
 <script>
 (() => {
   const app = document.getElementById('app');
-  // served by Apps Script (or by the copy hosted outside Google), google.script.run reaches the spreadsheet; in a plain preview nothing is sent
   const SERVER = !!(window.google && google.script && google.script.run);
-  let TEST = location.hash === '#test';      // ?test=1: records go to the test sheet and the end screen shows them
-  let KISA = false;                          // ?kisa=1: the class demonstration, with a short questionnaire
-  const HIZ = window.__hiz || 1;             // only the local test harness speeds the flow up
+  let TEST = location.hash === '#test';
+  let KISA = false;
+  const HIZ = window.__hiz || 1;
   const ms = t => t / HIZ;
-  const SURE = 20;                           // seconds for each vote
+  const SURE = 15;
   const ILETISIM = '';                       // the researcher's contact line for the debriefing, added once the ethics approval is in
+  const ARASTIRMACI = '';
+  const ACIKLAMA_KODU = '4729';
+  const IZ = 'proje-ekibi-iz-v5';
 
-  // Turkish case endings after a seat number
   const SUF = {1:{gen:'’in',dat:'’e',acc:'’i',abl:'’den'}, 2:{gen:'’nin',dat:'’ye',acc:'’yi',abl:'’den'}, 3:{gen:'’ün',dat:'’e',acc:'’ü',abl:'’ten'},
                4:{gen:'’ün',dat:'’e',acc:'’ü',abl:'’ten'}, 5:{gen:'’in',dat:'’e',acc:'’i',abl:'’ten'}, 6:{gen:'’nın',dat:'’ya',acc:'’yı',abl:'’dan'}};
-  const OTHERS = ['A','B','C','M'];          // M: the member who objects in the dissent condition; A, B, C: the members decisions are about
-  const GOREV = {A:'Anket tasarımı ve sunum', B:'Literatür taraması ve kaynakça', C:'Veri girişi ve analiz', M:'Anket uygulaması'};
-  const BENIM_GOREVIM = 'Rapor yazımı';
+  const OTHERS = ['A','B','C','M'];
 
-  /* ---------- the ten decisions ---------- */
-  // hedef: whose part the decision touches. Never M, never the participant; that member does not vote on it.
-  // metin: the decision as the system announces it · gerekce: the lead's answer to "Gerekçe iste" · kisa: a short label beside the vote
-  // not: the line added to that member's row · lider: what the lead takes on, shown in the lead's row
-  const KARAR = {
-    K1:{blok:1, duzey:'hafif', adil:false, hedef:'B', gerekce:'En verimli saat bu, değiştirmeyelim.', not:'Toplantı saatinde dersi var',
-      metin: n => `Haftalık toplantıyı çarşamba 08.00’e aldı. ${n.B.ad} o saatte dersi olduğunu söylemişti.`,
-      kisa: n => `Toplantının ${n.B.gen} dersi olan saate alınması`},
-    K2:{blok:1, duzey:'hafif', adil:false, hedef:'C', gerekce:'Anket konusu daha mantıklı, uzatmayalım.', not:'Konu önerisi seçilmedi',
-      metin: n => `Konu oylamasında ${n.C.gen} önerisi öndeydi; yürütücü kendi istediği anket konusunu seçti.`,
-      kisa: n => `Konunun ${n.C.gen} önerisi yerine yürütücünün tercihiyle seçilmesi`},
-    K3:{blok:1, duzey:'adil', adil:true, hedef:'B', gerekce:'Yükü fazlaydı, yardım edeyim dedim.', not:'Kaynakçanın yarısı yürütücüde', lider:'Kaynakçanın yarısı',
-      metin: n => `${n.B.gen} kaynakça işi fazla geldi; yarısını yürütücü kendisi alıyor.`,
-      kisa: n => `${n.B.gen} kaynakça işinin yarısını yürütücünün alması`},
-    K4:{blok:1, duzey:'hafif', adil:false, hedef:'A', gerekce:'Böylesi daha iyi oldu.', not:'Anket taslağı ona sorulmadan değiştirildi',
-      metin: n => `${n.A.gen} hazırladığı anket taslağındaki soruların sırasını ona sormadan değiştirdi.`,
-      kisa: n => `${n.A.gen} anket taslağının ona sorulmadan değiştirilmesi`},
-    K5:{blok:2, duzey:'orta', adil:false, hedef:'A', gerekce:'Daha hızlı olur, o kadar.', not:'Sunum elinden alındı', lider:'Sunum',
-      metin: n => `Hocanın puanlayacağı sunumu ${n.A.ad} yerine kendisi yapacak.`,
-      kisa: n => `Sunumu ${n.A.ad} yerine yürütücünün yapması`},
-    K6:{blok:2, duzey:'orta', adil:false, hedef:'B', gerekce:'Erken bitsin istiyorum.', not:'Teslim tarihi 3 gün öne çekildi',
-      metin: n => `${n.B.gen} literatür özeti teslim tarihini 3 gün öne çekti.`,
-      kisa: n => `${n.B.gen} teslim tarihinin 3 gün öne çekilmesi`},
-    K7:{blok:2, duzey:'adil', adil:true, hedef:'C', gerekce:'Hasta, yardım edeyim dedim.', not:'Veri girişinin yarısı yürütücüde', lider:'Veri girişinin yarısı',
-      metin: n => `${n.C.ad} bu hafta hasta; veri girişlerinin yarısını yürütücü yapacak.`,
-      kisa: n => `Hasta olan ${n.C.gen} veri girişlerinin yarısını yürütücünün yapması`},
-    K8:{blok:2, duzey:'orta', adil:false, hedef:'C', gerekce:'Kalabalık olmasın dedim.', not:'Hoca görüşmesine alınmadı',
-      metin: n => `Hocayla görüşmeye kendisi gidecek; ${n.C.ad} gelmeyecek.`,
-      kisa: n => `${n.C.gen} hoca görüşmesine alınmaması`},
-    K11:{blok:2, duzey:'agir', adil:false, hedef:'C', gerekce:'Toparlayan benim zaten.', not:'Analizi raporda yürütücünün adıyla geçecek', lider:'Veri analizi (raporda)',
-      metin: n => `${n.C.gen} yaptığı veri analizini raporda kendi bölümü olarak gösterecek.`,
-      kisa: n => `${n.C.gen} analizinin yürütücünün bölümü olarak gösterilmesi`},
-    K12:{blok:2, duzey:'agir', adil:false, hedef:'A', gerekce:'Öyle uygun gördüm.', not:'Akran puanını yürütücü belirledi: 60',
-      metin: n => `Akran değerlendirmede ${n.A.gen} puanını kendisi belirleyecek: 60 / 100.`,
-      kisa: n => `${n.A.gen} akran puanını yürütücünün belirlemesi`}
+  const PLAN = {
+    lead:{gorev:['Koordinasyon'], puan:10},
+    A:{gorev:['Sunum'], puan:20},
+    B:{gorev:['Literatür taraması'], puan:15},
+    C:{gorev:['Veri analizi'], puan:20},
+    M:{gorev:['Veri toplama'], puan:15},
+    you:{gorev:['Rapor yazımı'], puan:20}
   };
-  const GIZLI = ['K5','K6','K8','K11','K12'];          // block 2, unfair: the decisions the dissenter rejects
+  const KURALLAR = [
+    'Her görevin bir <strong>katkı puanı</strong> var; toplamı 100. Senaryoda bireysel not bu puana göre verilir.',
+    'Yürütücü plandaki görevleri ve puanları değiştirebilir. Her değişiklik oylanır: <strong>Onayla</strong> ya da <strong>Reddet</strong>.',
+    'Değişikliğin doğrudan ilgilendirdiği üye oy kullanmaz; diğer 4 üye oy verir. <strong>4 oydan en az 3’ü Reddet</strong> olursa değişiklik uygulanmaz.',
+    'Oy vermeden önce <strong>gerekçe sorabilirsin</strong>. Cevap beklenirken süre durur.',
+    `Oylar kurayla belirlenen sırayla verilir ve ekipte görünür. Her oy için ${SURE} saniye var; süre dolarsa oy sayılmaz.`
+  ];
+
+  const DEGISIKLIK = [
+    {kod:'P1', blok:1, duzey:'hafif', adil:false, hedef:'B', hazirlik:[4000, 5500], gerekce:'koordinasyon en zor iş', oy:{},
+      kart: n => [`Puan değişikliği: koordinasyonun puanı artıyor, ${n.B.gen} literatür taramasının puanı azalıyor.`],
+      kisa: n => `${n.B.gen} 5 puanının yürütücüye geçmesi`,
+      yeni: {lead:{puan:15}, B:{puan:10}}},
+    {kod:'P2', blok:1, duzey:'hafif', adil:false, hedef:'C', hazirlik:[4500, 6500], gerekce:'analizi yapan grafiği de yapsın', oy:{},
+      kart: n => [`Görev eklendi: ${n.C.dat} “Grafikler”. Bu iş için ek puan yok.`],
+      kisa: n => `${n.C.dat} puansız ek iş verilmesi`,
+      yeni: {C:{gorev:['Veri analizi', 'Grafikler']}}},
+    {kod:'P3', blok:2, duzey:'orta', adil:false, hedef:'A', hazirlik:[5500, 7500], gerekce:'sunumu ben yaparım, sana başka iş veririm', oy:{hedefSorar:true}, kirgin:true,
+      kart: n => [`Görev değişti: sunum ${n.A.abl} yürütücüye geçiyor.`, `${n.A.ad} görevsiz kalıyor.`],
+      kisa: n => `${n.A.gen} sunum görevinin ve 20 puanının yürütücüye geçmesi`,
+      yeni: {A:{gorev:[], puan:0}, lead:{gorev:['Koordinasyon', 'Sunum'], puan:35}}},
+    {kod:'P4', blok:2, duzey:'adil', adil:true, hedef:'A', hazirlik:[5500, 7500], gerekce:'dediğim gibi, görevsiz kalmasın', oy:{},
+      kart: n => [`Yeni görev: ${n.A.dat} “Sunum için sonuç özeti”.`, 'Bu görevin puanını yürütücü kendi puanından veriyor.'],
+      kisa: n => `Yürütücünün kendi puanından 10 puanı ${n.A.dat} vermesi`,
+      yeni: {A:{gorev:['Sunum için sonuç özeti'], puan:10}, lead:{puan:25}}},
+    {kod:'P5', blok:2, duzey:'orta', adil:false, hedef:'B', hazirlik:[5500, 7500], gerekce:'kaynakları ben daha hızlı toplarım', oy:{hedefSorar:true, duraksayan:'A'}, kirgin:true,
+      kart: n => [`Görev değişti: literatür taraması ${n.B.abl} yürütücüye geçiyor.`, `${n.B.ad} görevsiz kalıyor.`],
+      kisa: n => `${n.B.gen} görevinin ve 10 puanının yürütücüye geçmesi`,
+      yeni: {B:{gorev:[], puan:0}, lead:{gorev:['Koordinasyon', 'Sunum', 'Literatür taraması'], puan:35}}},
+    {kod:'P6', blok:2, duzey:'agir', adil:false, hedef:'C', hazirlik:[6000, 8000], gerekce:'sunumda analizi ben anlatacağım', oy:{hedefSorar:true}, kirgin:true,
+      kart: n => ['Hocaya not: veri analizi yürütücünün katkısı olarak bildirilecek.', `Analizi ${n.C.ad} yapmaya devam ediyor.`],
+      kisa: n => `${n.C.gen} yaptığı analizin hocaya yürütücünün katkısı olarak bildirilmesi ve 10 puanının yürütücüye geçmesi`,
+      hocaNotu: n => 'Veri analizi: yürütücünün katkısı',
+      yeni: {C:{puan:10}, lead:{puan:45}}},
+    {kod:'P7', blok:2, duzey:'agir', adil:false, hedef:'B', hazirlik:[4500, 6500], gerekce:'görevi yok, katkısı da yok', oy:{duraksayan:'A'}, kopma:true,
+      kart: n => [`Hocaya not: ${n.B.ad} için “katkısı yok” yazılacak.`],
+      kisa: n => `${n.B.gen} hocaya “katkısı yok” diye bildirilmesi`,
+      hocaNotu: n => `${n.B.ad}: katkısı yok`,
+      yeni: {}}
+  ];
+  const BLOK1 = ['P1','P2'], GIZLI = ['P3','P5','P6','P7'], ADIL = ['P4'];
   const LIKERT_UC = ['Hiç katılmıyorum', 'Tamamen katılıyorum'];
 
-  // levels keep their places, decisions of the same level are shuffled; the topic (K2) is chosen before the survey draft (K4) is touched
-  function siraOlustur(){
-    const b1 = pick([['K1','K2','K4'], ['K2','K1','K4'], ['K2','K4','K1']]);
-    const orta = shuffle(['K5','K6','K8']), agir = shuffle(['K11','K12']);
-    return [b1[0], b1[1], 'K3', b1[2], orta[0], orta[1], 'K7', orta[2], agir[0], agir[1]];
-  }
+  const ZAMAN = {
+    sonucSonra:[800, 2000],
+    hedefSorar:[1500, 4500],
+    soruFarket:[1500, 3000],
+    cevapSonra:1500,
+    cevabiOkur:[2000, 4000],
+    ilkOkur:2000,
+    oy:{min:2000, orta:4000, max:9000},
+    gecOy:{min:1500, orta:2400, max:5000},
+    duraksar:[7000, 9500],
+    kirgin:[9000, 11000],
+    oySonra:600, sayim:800, bitis:2500
+  };
+  const carpik = ({min, orta, max}) => { const z = Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(2 * Math.PI * Math.random()); return Math.round(Math.min(max, Math.max(min, orta * Math.exp(0.45 * z)))); };
 
-  let S, R, ui;           // S: this device's random setup · R: the record being collected
+  let S, R, ui, Z;        // S: this device's random setup · R: the record being collected · Z: when each part began
   let gen = 0;
   const sleep = t => { const g = gen; return new Promise((r, j) => setTimeout(() => g === gen ? r() : j(new Error('restart')), ms(t))); };
   window.addEventListener('unhandledrejection', e => { if (e.reason && e.reason.message === 'restart') e.preventDefault(); });
@@ -298,49 +324,64 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
   const pick = a => a[Math.floor(Math.random() * a.length)];
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const now = () => (window.performance && performance.now) ? performance.now() : Date.now();
+  const yazmaSuresi = metin => Math.max(5000, Math.round(metin.length / 4 * 1000) + rnd(-1500, 1500));
 
-  /* ---------- per-device setup: numbers, order and condition differ on every phone ---------- */
   function setup(){
     const leadSeat = pick([2,3,4]);
     const youSeat = pick([1,2,3,4,5,6].filter(s => s !== leadSeat));
     const others = shuffle([1,2,3,4,5,6].filter(s => s !== leadSeat && s !== youSeat));
     const seat = {lead:leadSeat, you:youSeat};
     OTHERS.forEach((o, i) => seat[o] = others[i]);
-    // the order tasks are handed out is the order of voting, the participant last. M stands third or fourth among the four,
-    // so even when a member steps aside for a decision about them, M never votes first.
-    const order = shuffle(['A','B','C']); order.splice(rnd(2, 3), 0, 'M'); order.push('you');
-    // the server hands out conditions in shuffled blocks of four (kosulAl); this random one stays only when it does not answer
-    const kosul = window.__kosul || (Math.random() < 0.5 ? 'oybirligi' : 'tek-itirazci');   // __kosul: only set by the local test harness
-    S = {seat, order, kosul, sira:siraOlustur(), leadTasks:[], notes:{A:[], B:[], C:[], M:[], you:[]}};
-    R = {surum:3, kayit_id:newCode(), mod:KISA ? 'kisa' : 'tam', kosul, kosul_kaynagi:'yerel',
-         baslangic:new Date().toISOString(), bitis:null, koltuk:{lider:leadSeat, ben:youSeat, A:seat.A, B:seat.B, C:seat.C, M:seat.M},
-         memnuniyet:null, kararlar:[], gizli:null, kontrol:null, aracilar:null, sorumluluk:null, nedenler:null, suphe:null, demografi:null};
+    const [b1, b2, b4] = shuffle(['A','B','C']);
+    const order = [b1, b2, 'M', 'you', b4];
+    const kosul = window.__kosul || (Math.random() < 0.5 ? 'oybirligi' : 'tek-itirazci');
+    const plan = {}; Object.keys(PLAN).forEach(k => plan[k] = {gorev:PLAN[k].gorev.slice(), puan:PLAN[k].puan});
+    S = {seat, order, kosul, plan, notlar:[]};
+    R = {surum:5, kayit_id:newCode(), mod:KISA ? 'kisa' : 'tam', kosul, kosul_kaynagi:'yerel',
+         baslangic:new Date().toISOString(), bitis:null, sure_sn:null, koltuk:{lider:leadSeat, ben:youSeat, A:seat.A, B:seat.B, C:seat.C, M:seat.M},
+         oy_sirasi:order.slice(), atama_sira:null, onceki:null, gizli_sn:0, kararlar:[], gizli:null, kontrol:null, suphe:null, demografi:null};
+    Z = {};
   }
-  // six characters a student can read out loud: no 0/O, 1/I/L, and no E (a sheet reads 4E73 as a number)
   function newCode(){
     const abc = '23456789ABCDFGHJKMNPQRSTUVWXYZ', a = new Uint32Array(6);
     try { crypto.getRandomValues(a); } catch(e){ a.forEach((_, i) => a[i] = Math.random() * 1e9); }
     return Array.from(a, n => abc[n % abc.length]).join('');
   }
+  const izOku = () => { try { const x = JSON.parse(localStorage.getItem(IZ) || 'null'); if (x && typeof x === 'object') return {basla:Number(x.basla) || 0, cikis:!!x.cikis, aciklama:!!x.aciklama}; } catch(e){} return {basla:0, cikis:false, aciklama:false}; };
+  const izYaz = f => { try { localStorage.setItem(IZ, JSON.stringify(f(izOku()))); } catch(e){} };
+  let gizliBas = null;
+  document.addEventListener('visibilitychange', () => {
+    if (!R || !Z || Z.giris == null || R.bitis) return;
+    if (document.visibilityState === 'hidden') gizliBas = now();
+    else if (gizliBas != null){ R.gizli_sn += (now() - gizliBas) * HIZ / 1000; gizliBas = null; }
+  });
   const seatOf = id => id === 'lead' ? S.seat.lead : S.seat[id];
   const nm = id => id === 'you' ? `Katılımcı ${S.seat.you} (Sen)` : `Katılımcı ${seatOf(id)}`;
   const form = (id, k) => `Katılımcı ${seatOf(id)}${SUF[seatOf(id)][k]}`;
-  // what the decision texts call each member: "Katılımcı 5", "Katılımcı 5’in", "Katılımcı 5’e"
-  const adlar = () => Object.fromEntries(OTHERS.map(o => [o, {ad:`Katılımcı ${S.seat[o]}`, gen:form(o, 'gen'), dat:form(o, 'dat')}]));
+  const adlar = () => Object.fromEntries(OTHERS.map(o => [o, {ad:`Katılımcı ${S.seat[o]}`, gen:form(o, 'gen'), dat:form(o, 'dat'), abl:form(o, 'abl')}]));
   const LEAD = () => `Proje yürütücüsü (Katılımcı ${S.seat.lead})`;
 
-  /* ---------- frame ---------- */
   function frame(){
     app.innerHTML = '';
     const scene = el('main','scene gutter enter'); scene.setAttribute('aria-live','polite');
     const actions = el('footer','actions gutter');
-    app.append(scene, actions);
+    const alt = el('div','altlinks');
+    app.append(scene, actions, alt);
     if (TEST){
       const rs = el('button','restart','Baştan başlat'); rs.id = 'restart';
       rs.onclick = () => { gen++; intro().catch(() => {}); };
-      app.appendChild(rs);
+      alt.appendChild(rs);
     }
-    ui = {scene, actions};
+    ui = {scene, actions, alt};
+  }
+  function cikisDugmesi(){
+    const cik = el('button','restart','Çalışmadan çık'); cik.id = 'cik';
+    let kurulu = null;
+    cik.onclick = () => {
+      if (!kurulu){ cik.textContent = 'Çıkmak için tekrar dokun'; kurulu = setTimeout(() => { kurulu = null; cik.textContent = 'Çalışmadan çık'; }, 5000); return; }
+      clearTimeout(kurulu); gen++; cikis();
+    };
+    ui.alt.prepend(cik);
   }
   function newScene(cls){ ui.scene.className = 'scene gutter enter ' + (cls||''); ui.scene.innerHTML=''; ui.actions.innerHTML=''; ui.scene.scrollTop = 0; return ui.scene; }
   const stage = (name, extra) => `<span class="stage">${name}${extra ? ` <span>· ${extra}</span>` : ''}</span>`;
@@ -354,7 +395,6 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
       ui.actions.appendChild(w);
     });
   }
-  // no "continue" buttons while the group is together: a countdown that moves on by itself
   function next(secs = 15){
     return new Promise(res => {
       ui.actions.innerHTML = '';
@@ -367,38 +407,41 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
       setTimeout(tick, ms(1000));
     });
   }
-  async function upNext(name, title, desc, secs){
-    const s = newScene('center');
-    s.innerHTML = `${stage(name)}<span class="rlabel" style="color:var(--accent)">Sırada</span><h2 class="big">${title}</h2><p class="sub">${desc}</p>`;
-    await next(secs || 8);
-  }
 
-  /* ---------- opening ---------- */
   async function intro(){
     setup(); frame();
     const s = newScene();
     s.innerHTML = `${TEST ? '<span class="tag">Test sürümü</span>' : ''}
-      <h1 class="big">Dönem projesi toplantısı</h1>
-      <p class="sub">Bu toplantıya <strong>6 katılımcı</strong> katılacak. Roller rastgele belirlenecek: <strong>1 proje yürütücüsü</strong> ve <strong>5 proje üyesi</strong>.</p>
-      <p class="sub">İsim istenmez, herkes yalnızca numarasıyla görünür. Katılım gönüllüdür; istediğin an sayfayı kapatıp bırakabilirsin. Çalışmanın amacı sonunda ayrıntılı olarak açıklanacak.</p>
-      <div class="announce"><span class="rlabel">Önemli</span><span>Ekranını kimseyle paylaşma ve etkinlik bitene kadar yanındakilerle konuşma.</span></div>`;
-    const c = await buttons([{id:'katil', label:'Bağlan', cls:'primary'}, {id:'katilma', label:'Katılmak istemiyorum'}]);
+      <h1 class="big">Çevrim içi ekip çalışması</h1>${ARASTIRMACI ? `<p class="sub">${esc(ARASTIRMACI)}</p>` : ''}
+      <p class="sub">Bu çalışma, çevrim içi ekiplerde görev paylaşımını ve karar almayı inceliyor. Telefonundan kısa bir ekip toplantısına katılacak, sonra birkaç soruyu cevaplayacaksın. Toplam süre yaklaşık <strong>10 dakika</strong>.</p>
+      <ul class="facts">
+        <li>Katılım gönüllüdür. İstediğin an ekranın altındaki “Çalışmadan çık” ile bırakabilirsin.</li>
+        <li>Adın ya da iletişim bilgin istenmez. Cevapların rastgele bir kodla kaydedilir.</li>
+        <li>Çalışmanın bazı ayrıntıları sonunda açıklanacak.</li>
+      </ul>
+      <div class="announce"><span class="rlabel">Önemli</span><span>Ekranını kimseyle paylaşma ve çalışma bitene kadar yanındakilerle konuşma.</span></div>`;
+    const c = await buttons([{id:'katil', label:'18 yaşından büyüğüm, katılıyorum', cls:'primary'}, {id:'katilma', label:'Katılmak istemiyorum'}]);
     if (c.id === 'katilma'){
-      newScene('center').innerHTML = '<h2 class="big">Teşekkürler</h2><p class="sub">Katılmamayı seçtin. Hiçbir cevap kaydedilmedi. Sayfayı kapatabilirsin.</p>';
+      ui.alt.innerHTML = '';
+      newScene('center').innerHTML = '<h2 class="big">Teşekkürler</h2><p class="sub">Hiçbir cevap kaydedilmedi. Diğerleri bitirene kadar bu ekranda bekleyebilirsin.</p>';
       return;
     }
+    Z.giris = now();
+    R.onceki = izOku();
+    izYaz(x => ({...x, basla: x.basla + 1}));
+    cikisDugmesi();
     const atandi = serverCondition();
     await connecting();
     await atandi;
-    await roles();
     await rules();
-    await tasks();
+    await plan();
+    Z.toplanti = now(); S.kilit = true;
     await meeting();
+    Z.anket = now();
     await anket();
     bitir();
   }
 
-  // asks the server for this phone's condition; waits at most 5 s, otherwise the random one from setup() stays
   function serverCondition(){
     if (!SERVER || window.__kosul) return Promise.resolve();
     return new Promise(res => {
@@ -406,105 +449,96 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
       const t = setTimeout(res, ms(5000));
       google.script.run
         .withSuccessHandler(r => {
-          if (g0 === gen && r && (r.kosul === 'oybirligi' || r.kosul === 'tek-itirazci')){ S.kosul = R.kosul = r.kosul; R.kosul_kaynagi = 'sunucu'; }
+          if (g0 === gen && r && Number.isInteger(r.sira)) R.atama_sira = r.sira;
+          if (g0 === gen && !S.kilit && r && (r.kosul === 'oybirligi' || r.kosul === 'tek-itirazci')){ S.kosul = R.kosul = r.kosul; R.kosul_kaynagi = 'sunucu'; }
           clearTimeout(t); res();
         })
         .withFailureHandler(() => { clearTimeout(t); res(); })
-        .kosulAl(TEST);
+        .kosulAl(TEST, R.mod);
     });
   }
 
   async function connecting(){
     const s = newScene('center');
-    s.innerHTML = `${stage('Bağlantı')}<h2 class="big">Ekip oluşturuluyor</h2><p class="sub">Katılımcılar sırayla bağlanıyor. Sayfayı kapatma.</p>
-      <div class="seats">${[1,2,3,4,5,6].map(i => `<div class="seat" id="seat${i}"><span class="ring">${i}</span><span>${i === S.seat.you ? 'Sen' : 'Katılımcı ' + i}</span></div>`).join('')}</div>
+    s.innerHTML = `${stage('Bağlantı')}<h2 class="big">Ekip oluşturuluyor</h2><p class="sub">Ekip, şu anda bağlanan katılımcılar arasından rastgele oluşturuluyor. Sayfayı kapatma.</p>
+      <div class="seats" id="seats"></div>
       <div class="status" id="st"></div>`;
-    const st = s.querySelector('#st');
-    const on = (i, me) => { const e = document.getElementById('seat'+i); e.classList.add('on'); if (me) e.classList.add('me'); };
+    const seats = s.querySelector('#seats'), st = s.querySelector('#st');
     const say = t => { st.textContent = t; };
-    const join = shuffle([1,2,3,4,5,6].filter(i => i !== S.seat.you));
-    join.slice(0, 3).forEach(i => on(i));
-    say('3 katılımcı bağlı. Sen bağlanıyorsun…');
-    await sleep(3000); on(S.seat.you, true); say(`Sen bağlandın: Katılımcı ${S.seat.you} · 4 / 6`);
-    await sleep(2200); say('Diğer katılımcılar bekleniyor · 4 / 6');
-    await sleep(4200); on(join[3]); say(`Katılımcı ${join[3]} bağlandı · 5 / 6`);
-    await sleep(3400); on(join[4]); say(`Katılımcı ${join[4]} bağlandı. Ekip tamamlandı · 6 / 6`);
-    await sleep(2400);
-  }
-
-  async function roles(){
-    const s2 = newScene();
-    s2.innerHTML = `${stage('Yürütücü ve üyeler')}<h2 class="big">Roller rastgele atanıyor</h2>`;
-    const note = el('div','announce'); const ul = el('ul','list'); const Rw = {};
-    s2.append(note, ul);
-    const tell = (label, html, lead) => { note.className = 'announce enter' + (lead ? ' lead' : ''); note.innerHTML = `<span class="rlabel">${label}</span><span>${html}</span>`; };
-    [1,2,3,4,5,6].forEach(i => {
-      const me = i === S.seat.you;
-      const li = el('li', me ? 'me' : '', `<span class="who">${me ? `Katılımcı ${i} (Sen)` : 'Katılımcı ' + i}</span><span class="what dim">Bekliyor</span>`);
-      Rw[i] = {li, what: li.querySelector('.what')}; ul.appendChild(li);
-    });
-    hint('Roller belirleniyor…');
-    const roll = async (i, final, t) => {
-      const w = Rw[i].what; w.classList.remove('dim'); w.classList.add('rolling');
-      const opts = ['Proje yürütücüsü','Proje üyesi']; let k = 0; const end = Date.now() + t / HIZ;
-      while (Date.now() < end){ w.textContent = opts[k++ % 2]; await sleep(170); }
-      w.classList.remove('rolling'); w.textContent = final;
-      if (final === 'Proje yürütücüsü'){ Rw[i].li.classList.add('lead'); w.innerHTML = '<span class="lead-role">Proje yürütücüsü</span>'; }
-    };
-    tell('Başlıyor', 'Roller katılımcı numarasına göre sırayla belirlenecek.');
-    await sleep(2200);
-    for (let i = 1; i < S.seat.lead; i++){
-      tell('Sırada', `<strong>Katılımcı ${i}${SUF[i].gen}</strong> rolü belirlenecek.`);
-      await sleep(1800);
-      await roll(i, 'Proje üyesi', 2200);
-      tell('Sonuç', `Katılımcı ${i}${i === S.seat.you ? ' (Sen)' : ''}: <strong>proje üyesi</strong>.`);
-      await sleep(1800);
+    const yer = Array.from({length:6}, () => { const d = el('div','seat', '<span class="ring"></span><span class="lbl"></span>'); seats.appendChild(d); return d; });
+    const doldur = (i, me) => { yer[i].classList.add('on'); if (me) yer[i].classList.add('me'); yer[i].querySelector('.lbl').textContent = me ? 'Sen' : 'Bağlandı'; };
+    const once = rnd(1, 4), gelecek = 5 - once;
+    for (let i = 0; i < once; i++) doldur(i);
+    say(`${once} katılımcı bağlı. Sen bağlanıyorsun…`);
+    await sleep(rnd(2000, 3000)); doldur(once, true); say(`Bağlandın · ${once + 1} / 6`);
+    const pay = Array.from({length: gelecek}, () => 0.3 + Math.random()), top = pay.reduce((a, b) => a + b, 0), toplam = rnd(4000, 8000);
+    for (let i = 0; i < gelecek; i++){
+      await sleep(Math.round(toplam * pay[i] / top)); doldur(once + 1 + i);
+      say(i === gelecek - 1 ? 'Ekip tamamlandı · 6 / 6' : `Bir katılımcı daha bağlandı · ${once + 2 + i} / 6`);
     }
-    const L = S.seat.lead;
-    tell('Sırada', `<strong>Katılımcı ${L}${SUF[L].gen}</strong> rolü belirlenecek.`);
-    await sleep(1800);
-    await roll(L, 'Proje yürütücüsü', 3200);
-    const rest = [1,2,3,4,5,6].filter(i => i > L);
-    const restTxt = rest.map(i => i === S.seat.you ? `Katılımcı ${i} (Sen)` : `Katılımcı ${i}`).join(', ');
-    tell('Uyarı', `<strong>Katılımcı ${L} proje yürütücüsü oldu.</strong> Ekipte yalnızca bir proje yürütücüsü olabilir. Bu yüzden geri kalan herkes (${restTxt}) <strong>proje üyesi</strong> olacak.`, true);
-    await sleep(5000);
-    for (const i of rest){ Rw[i].what.classList.remove('dim'); Rw[i].what.textContent = 'Proje üyesi'; await sleep(1100); }
-    tell('Tamamlandı', 'Bütün roller belirlendi: <strong>1 proje yürütücüsü</strong>, <strong>5 proje üyesi</strong>.');
-    hint('Roller belirlendi.');
-    await sleep(2400);
+    await sleep(1500); say('Numaralar kurayla veriliyor…');
+    await sleep(1500);
+    seats.innerHTML = '';
+    [1,2,3,4,5,6].forEach(i => { const me = i === S.seat.you; seats.appendChild(el('div', 'seat on' + (me ? ' me' : ''), `<span class="ring">${i}</span><span>${me ? 'Sen' : 'Katılımcı ' + i}</span>`)); });
+    say(`Senin numaran: ${S.seat.you}. Proje yürütücüsü kurayla seçiliyor…`);
+    await sleep(2000);
+    seats.children[S.seat.lead - 1].classList.add('lead');
+    say(`Katılımcı ${S.seat.lead} proje yürütücüsü oldu. Diğer herkes proje üyesi.`);
+    await sleep(3000);
   }
 
   async function rules(){
     const members = [1,2,3,4,5,6].filter(i => i !== S.seat.lead);
     const s = newScene();
     s.innerHTML = `${stage('Kurallar')}<h2 class="big">Roller ve kurallar</h2>
+      <div class="announce"><span class="rlabel">Canlandırma</span><span>Bir dönem projesinin planlama toplantısını canlandıracaksınız. Gerçek bir ödev yapılmayacak; puanlar ve hocaya gidecek notlar canlandırmanın parçası, gerçek notunu etkilemez.</span></div>
       <div class="myrole"><span class="rlabel">Senin rolün</span><span class="rval">PROJE ÜYESİ</span></div>
-      <div class="rgroup lead"><span class="rlabel">Proje yürütücüsünün görevi</span>
+      <div class="rgroup lead"><span class="rlabel">Proje yürütücüsü</span>
         <div class="chips"><span class="chip">Katılımcı ${S.seat.lead}</span></div>
-        <span>Görevleri üyelere dağıtır ve projeyle ilgili kararları alır. Son kararı yürütücü verir.</span></div>
-      <div class="rgroup memb"><span class="rlabel">Proje üyelerinin görevi</span>
+        <span>Projenin zamanında ve tek elden bitmesinden sorumludur. Plandaki görevleri ve puanları değiştirebilir. Dönem sonunda puanları ve notları hocaya bildirir.</span></div>
+      <div class="rgroup memb"><span class="rlabel">Proje üyeleri</span>
         <div class="chips">${members.map(i => i === S.seat.you ? `<span class="chip me">Katılımcı ${i} (Sen)</span>` : `<span class="chip">Katılımcı ${i}</span>`).join('')}</div>
-        <ol class="rules">
-          <li>Proje yürütücüsünün kararlarına <strong>Onayla</strong> ya da <strong>Reddet</strong> cevabı verir.</li>
-          <li>İsterse önce <strong>gerekçesini sorar</strong>, cevabı okuduktan sonra oy verir.</li>
-          <li>Kararın doğrudan ilgilendirdiği üye o kararda oy kullanmaz.</li>
-          <li>Oylar, görevlerin dağıtıldığı sırayla verilir ve ekipte görünür.</li>
-          <li>Her oy için ${SURE} saniye süre vardır. Süre dolarsa oy sayılmaz.</li>
-        </ol></div>`;
-    await next(30);
+        <ol class="rules">${KURALLAR.map(k => `<li>${k}</li>`).join('')}</ol></div>`;
+    const t0 = now(), hazir = [...OTHERS, 'lead'].map(() => rnd(15000, 30000) / HIZ);
+    await new Promise(res => {
+      ui.actions.innerHTML = '';
+      const b = el('button','primary', ''); b.id = 'go'; b.disabled = true;
+      ui.actions.appendChild(b);
+      let left = 15; const g0 = gen;
+      const draw = () => { b.textContent = left > 0 ? `Okudum (${left} sn)` : 'Okudum'; b.disabled = left > 0; };
+      draw();
+      const tick = () => { if (g0 !== gen) return; left--; draw(); if (left > 0) setTimeout(tick, ms(1000)); };
+      setTimeout(tick, ms(1000));
+      b.onclick = res;
+    });
+    const tik = now() - t0, son = hazir.indexOf(Math.max(...hazir));
+    if (hazir[son] < tik + 2000 / HIZ) hazir[son] = tik + rnd(2000, 8000) / HIZ;
+    const say = () => 1 + hazir.filter(t => now() - t0 >= t).length;
+    hint(`Ekip kuralları okuyor… <strong>${say()} / 6</strong> hazır`);
+    while (say() < 6){ await sleep(500); hint(`Ekip kuralları okuyor… <strong>${say()} / 6</strong> hazır`); }
+    hint('<strong>6 / 6</strong> hazır. Devam ediliyor…');
+    await sleep(1200);
   }
 
-  /* ---------- pieces ---------- */
-  // the team's current tasks: the lead first, members in voting order, each with the changes the decisions made to their part
-  function rowHtml(m){
-    if (m === 'lead') return `<span class="lead-role">Proje yürütücüsü</span>${S.leadTasks.map(t => '<br>' + esc(t)).join('')}`;
-    const task = m === 'you' ? BENIM_GOREVIM : GOREV[m];
-    return esc(task) + S.notes[m].map(x => `<br><span class="${x.adil ? 'fair' : 'to'}">${esc(x.t)}</span>`).join('');
+  const gorevYaz = g => g.length ? esc(g.join(', ')) : '<span class="none">Görevi yok</span>';
+  function gorevFark(eski, yeni){
+    if (!yeni || yeni.join() === eski.join()) return gorevYaz(eski);
+    if (!yeni.length) return `<s>${esc(eski.join(', '))}</s> → <span class="down">Görevi yok</span>`;
+    return eski.filter(g => yeni.includes(g)).map(esc)
+      .concat(eski.filter(g => !yeni.includes(g)).map(g => `<s>${esc(g)}</s>`))
+      .concat(yeni.filter(g => !eski.includes(g)).map(g => `<span class="up">+ ${esc(g)}</span>`)).join(', ');
+  }
+  function rowHtml(m, oneri){
+    const p = S.plan[m], o = oneri || {};
+    const g = gorevFark(p.gorev, o.gorev);
+    const pu = o.puan != null && o.puan !== p.puan ? `<s>${p.puan}</s> → <span class="${o.puan < p.puan ? 'down' : 'up'}">${o.puan}</span> puan` : `${p.puan} puan`;
+    const ad = m === 'lead' ? '<span class="lead-role">Proje yürütücüsü</span><br>' : '';
+    return `${ad}${g} · <span class="pts">${pu}</span>`;
   }
   function teamTable(withStatus){
     const ul = el('ul','list'); const rows = {};
     const add = (m, cls) => {
-      const li = el('li', cls, `<div class="col"><span class="who">${nm(m)}</span><span class="what"></span></div>${withStatus && m !== 'lead' ? '<span class="st wait"></span>' : ''}`);
+      const li = el('li', cls, `<div class="col"><span class="who">${nm(m)}</span><span class="what"></span></div>${withStatus ? '<span class="st wait"></span>' : ''}`);
       rows[m] = {li, what: li.querySelector('.what'), st: li.querySelector('.st')};
       rows[m].what.innerHTML = rowHtml(m);
       ul.appendChild(li);
@@ -513,204 +547,234 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
     S.order.forEach(m => add(m, m === 'you' ? 'me' : ''));
     return {ul, rows};
   }
+  function notKutusu(){
+    const k = el('div','notes');
+    const ciz = yeni => { k.innerHTML = `<span class="rlabel">Hocaya bildirilecek notlar</span>${S.notlar.length || yeni ? `<ul>${S.notlar.map(x => `<li>${esc(x)}</li>`).join('')}${yeni ? `<li class="down">+ ${esc(yeni)}</li>` : ''}</ul>` : '<span class="none">Henüz not yok.</span>'}`; };
+    ciz();
+    return {node:k, ciz};
+  }
+  const oySirasi = () => `<span class="rlabel">Oy sırası</span><span>${S.order.map(m => m === 'you' ? '<strong>Sen</strong>' : `Katılımcı ${S.seat[m]}`).join(' → ')}</span>`;
+  function kuralKutusu(){
+    return el('details','rulebox', `<summary>Kuralları göster</summary><ol class="rules">${KURALLAR.map(k => `<li>${k}</li>`).join('')}</ol>`);
+  }
   function clockEl(){
     const c = el('div','clock', `<div class="dial" style="--p:100"><span>${SURE}</span></div><span class="lbl"></span>`);
-    let left = 0, id = null; const g0 = gen;
+    let left = 0, id = null, label = '', onEnd = null; const g0 = gen;
     const dial = c.querySelector('.dial'), num = c.querySelector('.dial span'), lbl = c.querySelector('.lbl');
     const draw = () => { num.textContent = String(Math.max(left, 0)); dial.style.setProperty('--p', String(left / SURE * 100)); c.classList.toggle('urgent', left <= 5 && !c.classList.contains('paused')); };
+    const tick = () => { if (g0 !== gen) return; left--; draw(); if (left <= 0){ id = null; onEnd && onEnd(); } else id = setTimeout(tick, ms(1000)); };
     return {node:c,
-      start(label, onEnd){ this.stop(); left = SURE; c.classList.remove('paused'); lbl.textContent = label; draw();
-        const tick = () => { if (g0 !== gen) return; left--; draw(); if (left <= 0){ id = null; onEnd && onEnd(); } else id = setTimeout(tick, ms(1000)); };
-        id = setTimeout(tick, ms(1000)); },
+      start(lb, end){ this.stop(); left = SURE; label = lb; onEnd = end; c.classList.remove('paused'); lbl.textContent = lb; draw(); id = setTimeout(tick, ms(1000)); },
+      resume(){ if (id || left <= 0) return; c.classList.remove('paused'); lbl.textContent = label; draw(); id = setTimeout(tick, ms(1000)); },
       stop(){ if (id) clearTimeout(id); id = null; },
-      pause(label){ this.stop(); c.classList.add('paused'); c.classList.remove('urgent'); lbl.textContent = label; },
+      pause(lb){ this.stop(); c.classList.add('paused'); c.classList.remove('urgent'); lbl.textContent = lb; },
       hide(){ this.stop(); c.hidden = true; }
     };
   }
 
-  /* one vote: the other members answer in task order, the participant last.
-     uyeler: [{kim, sure (seconds before answering), sor (asks for the reason first), ret (rejects)}] */
-  async function oylama({uyeler, evetK, hayirK, evetB, hayirB, sorulabilir, gerekce, satirlar, slot, soru, hedef}){
-    const clock = clockEl(), why = el('div');
+  async function plan(){
+    const s = newScene();
+    s.innerHTML = `${stage('Proje planı')}<h2 class="big">Görevler kurayla dağıtıldı</h2>
+      <p class="sub">Proje konusu: kampüste öğrenci yaşamı üzerine bir anket araştırması. Şablondaki altı görevin her birinin katkı puanı var. Koordinasyon yürütücünün; diğer görevler ve oy sırası kurayla belirlendi. Senin satırın mavi çerçeveli.</p>`;
+    s.appendChild(el('div','announce', oySirasi()));
+    const {ul, rows} = teamTable(false); s.appendChild(ul);
+    s.appendChild(notKutusu().node);
+    const sira = ['lead', ...S.order];
+    sira.forEach(m => { rows[m].what.innerHTML = '<span class="typing"><i></i><i></i><i></i></span>'; });
+    hint('Görevler dağıtılıyor…');
+    await sleep(1200);
+    for (const m of sira){ rows[m].what.innerHTML = rowHtml(m); await sleep(250); }
+    await next(8);
+  }
+
+  async function oylama({sira, tur, gerekce, satirlar, slot, soru, hedef, hedefSorar, kartT}){
+    const clock = clockEl(), why = el('div', 'why');
+    why.hidden = true;
     slot.innerHTML = ''; slot.append(clock.node, why);
     const set = (m, cls, txt) => { satirlar[m].st.className = 'st ' + cls; satirlar[m].st.textContent = txt; };
     S.order.forEach(m => set(m, 'wait', m === hedef ? 'Oy kullanmıyor' : 'Sırada'));
-    let evet = 0, hayir = 0;
+    let evet = 0, hayir = 0, bos = 0, cevap = 0;
+    const kimin = kim => kim === 'you' ? 'Gerekçe sordun' : `${nm(kim)} gerekçe sordu`;
 
     async function gerekceGoster(kim){
-      clock.pause('Süre durdu. Proje yürütücüsü cevap yazıyor.');
-      why.className = 'why enter';
-      why.innerHTML = `<span class="wl">${kim === 'you' ? 'Gerekçesini sordun' : nm(kim) + ' gerekçesini sordu'} · Proje yürütücüsü yazıyor</span><span class="typing"><i></i><i></i><i></i></span>`;
-      await sleep(rnd(4500, 6500));
-      why.lastChild.replaceWith(el('span', 'txt enter', esc(gerekce)));
-      why.querySelector('.wl').textContent = `${kim === 'you' ? 'Senin sorun' : form(kim, 'gen') + ' sorusu'} · proje yürütücüsünün cevabı`;
-      await sleep(2600);
-    }
-
-    hint('Üyeler, görev dağıtım sırasına göre cevap veriyor.');
-    for (const o of uyeler){
-      set(o.kim, 'think', 'Düşünüyor');
-      clock.start(`${nm(o.kim)} düşünüyor`);
-      if (o.sor){
-        await sleep(o.sure * 1000);
-        set(o.kim, 'ask', 'Gerekçe istedi');
-        await gerekceGoster(o.kim);
-        set(o.kim, 'think', 'Düşünüyor');
-        clock.start(`${nm(o.kim)} düşünüyor`);
-        await sleep(rnd(3000, 5000));
-      }
-      else if (o.sure > 8){ await sleep(7000); set(o.kim, 'think', 'Hâlâ düşünüyor'); await sleep((o.sure - 7) * 1000); }
-      else await sleep(o.sure * 1000);
-      clock.stop();
-      if (o.ret){ set(o.kim, 'no', hayirK); hayir++; } else { set(o.kim, 'ok', evetK); evet++; }
-      await sleep(1300);
+      const metin = cevap ? 'yukarıda yazdım' : gerekce;
+      clock.pause(kim === 'you' ? 'Süre durdu · soru iletildi' : `Süre durdu · ${nm(kim)} gerekçe sordu`);
+      why.hidden = false;
+      const wl = el('span', 'wl enter', esc(kimin(kim))); why.appendChild(wl);
+      await sleep(rnd(...ZAMAN.soruFarket));
+      set('lead', 'edit', 'Yazıyor');
+      clock.pause('Süre durdu · Proje yürütücüsü yazıyor');
+      if (kim === 'you') hint('Proje yürütücüsü yazıyor…');
+      wl.textContent = `${kimin(kim)} · Proje yürütücüsü yazıyor`;
+      const dots = el('span', 'typing', '<i></i><i></i><i></i>'); why.appendChild(dots);
+      await sleep(yazmaSuresi(metin));
+      dots.replaceWith(el('span', 'txt enter', esc(metin)));
+      wl.textContent = `${kimin(kim)} · proje yürütücüsünün cevabı`;
+      set('lead', 'wait', '');
+      cevap++;
+      await sleep(ZAMAN.cevapSonra);
     }
 
     const rec = {ilk:null, ilk_ms:null, son:null, yeniden_ms:null};
-    set('you', 'think', 'Sıra sende');
-    setTimeout(() => { try { satirlar.you.li.scrollIntoView({block:'end', behavior:'smooth'}); } catch(e){} }, 50);
-    const iste = (opts, msg) => new Promise(res => {
-      const t0 = now(); let bitti = false;
-      const done = r => { if (bitti) return; bitti = true; clock.stop(); res(r); };
-      clock.start('Senin süren', () => done({id:'sure', ms:null}));
-      buttons(opts, msg, opts.length).then(o => done({id:o.id, ms:Math.round((now() - t0) * HIZ)}));
-    });
-    const iki = [{id:'onay', label:evetB, cls:'ok'}, {id:'ret', label:hayirB, cls:'no'}];
-    const secenek = sorulabilir ? [...iki, {id:'gerekce', label:'Gerekçe iste', cls:'ask'}] : iki;
-    const durum = `${evet} üye ${evetK.toLowerCase()}${hayir ? `, ${hayir} üye ${hayirK.toLowerCase()}` : ''}${hedef ? ', 1 üye oy kullanmıyor' : ''}.`;
-    // the question stays in view next to the buttons, even after the list scrolls to the participant's row
-    const q = soru ? `<br><span class="qline">${soru}</span>` : '';
-    let c = await iste(secenek, `<strong>Sıra sende.</strong> ${durum}${q}`);
-    rec.ilk = c.id; rec.ilk_ms = c.ms;
-    if (c.id === 'gerekce'){
-      set('you', 'ask', 'Gerekçe istedi'); hint('Proje yürütücüsü cevap yazıyor…');
-      await gerekceGoster('you');
-      set('you', 'think', 'Sıra sende');
-      c = await iste(iki, `Cevabı okudun. <strong>Oyunu ver.</strong>${q}`);
-      rec.yeniden_ms = c.ms;
+    for (const [j, kim] of sira.entries()){
+      if (kim === 'you'){
+        set('you', 'think', 'Sıra sende');
+        setTimeout(() => { try { satirlar.you.li.scrollIntoView({block:'center', behavior:'smooth'}); } catch(e){} }, 50);
+        const iste = (opts, msg) => new Promise(res => {
+          const t0 = now(); let bitti = false;
+          const done = r => { if (bitti) return; bitti = true; clock.stop(); res(r); };
+          clock.start('Senin süren', () => done({id:'sure', ms:null}));
+          buttons(opts, msg, opts.length).then(o => done({id:o.id, ms:Math.round((now() - t0) * HIZ)}));
+        });
+        const iki = [{id:'onay', label:'Onayla', cls:'ok'}, {id:'ret', label:'Reddet', cls:'no'}];
+        const parca = [];
+        if (evet) parca.push(`${evet} üye onayladı`);
+        if (hayir) parca.push(`${hayir} üye reddetti`);
+        if (bos) parca.push(`${bos} üyenin süresi doldu`);
+        parca.push('1 üye oy kullanmıyor');
+        const q = `<br><span class="qline">${soru}</span>`;
+        let c = await iste([...iki, {id:'gerekce', label:'Gerekçe sor', cls:'ask'}], `<strong>Sıra sende.</strong> Şu ana kadar: ${parca.join(', ')}.${q}`);
+        rec.ilk = c.id; rec.ilk_ms = c.ms;
+        if (c.id === 'gerekce'){
+          set('you', 'ask', 'Gerekçe sordun'); hint('Soru iletildi. Cevap bekleniyor…');
+          await gerekceGoster('you');
+          set('you', 'think', 'Sıra sende');
+          c = await iste(iki, `Yürütücünün cevabı yukarıda. <strong>Şimdi oyunu kullan.</strong>${q}`);
+          rec.yeniden_ms = c.ms;
+        }
+        rec.son = c.id;
+        clock.pause('');
+        if (c.id === 'onay'){ set('you', 'ok', 'Onayladın'); evet++; }
+        else if (c.id === 'ret'){ set('you', 'no', 'Reddettin'); hayir++; }
+        else { set('you', 'wait', 'Süren doldu'); bos++; }
+        hint(c.id === 'sure' ? '<strong>Süren doldu.</strong> Oyun sayılmadı.' : 'Oy kaydedildi.');
+        await sleep(ZAMAN.oySonra);
+        continue;
+      }
+      const o = tur[kim];
+      hint('Oylar sırayla veriliyor.');
+      set(kim, 'think', 'Oy bekleniyor');
+      let doldu = false;
+      clock.start(`${nm(kim)} · oy bekleniyor`, () => { doldu = true; });
+      const izledi = (now() - kartT) * HIZ;
+      const sure = o.tip === 'kirgin' ? rnd(...ZAMAN.kirgin) : o.tip === 'duraksar' ? rnd(...ZAMAN.duraksar) : o.tip === 'yavas' ? rnd(8000, 11000)
+        : izledi >= 15000 ? carpik(ZAMAN.gecOy) : carpik(ZAMAN.oy) + (j === 0 && !hedefSorar ? ZAMAN.ilkOkur : 0);
+      let gecen = 0;
+      const bekle = async t => {
+        if (gecen < 8000 && gecen + t > 8000){ await sleep(8000 - gecen); set(kim, 'think', 'Henüz oy vermedi'); t -= 8000 - gecen; gecen = 8000; }
+        await sleep(t); gecen += t;
+      };
+      let kalan = sure;
+      if (j === 0 && hedefSorar){
+        const an = rnd(...ZAMAN.hedefSorar);
+        await bekle(an);
+        set(hedef, 'ask', 'Gerekçe sordu');
+        await gerekceGoster(hedef);
+        set(hedef, 'wait', 'Oy kullanmıyor');
+        hint('Oylar sırayla veriliyor.');
+        clock.resume();
+        kalan = Math.max(sure - an, rnd(...ZAMAN.cevabiOkur));
+      }
+      await bekle(kalan);
+      clock.pause('');
+      if (doldu){ set(kim, 'wait', 'Süre doldu'); bos++; }
+      else if (o.ret){ set(kim, 'no', 'Reddetti'); hayir++; } else { set(kim, 'ok', 'Onayladı'); evet++; }
+      await sleep(ZAMAN.oySonra);
     }
-    rec.son = c.id;
     clock.hide();
-    if (c.id === 'onay'){ set('you', 'ok', evetK); evet++; }
-    else if (c.id === 'ret'){ set('you', 'no', hayirK); hayir++; }
-    else set('you', 'wait', 'Süre doldu');
-    hint(c.id === 'sure' ? '<strong>Süren doldu.</strong> Oyun sayılmadı. Cevaplar toplanıyor…' : 'Cevaplar toplanıyor…');
-    await sleep(1800);
-    return {rec, evet, hayir};
+    hint('Oylar sayılıyor…');
+    await sleep(ZAMAN.sayim);
+    return {rec, evet, hayir, bos};
   }
 
-  /* ---------- tasks and the warm-up vote ---------- */
-  async function tasks(){
-    await upNext('Proje görevleri', 'Görevlerin dağıtılması', 'Proje yürütücüsü görevleri üyelere sırayla verecek. Bu sıra, oylamalarda oy verme sırası olacak.');
-    let s = newScene();
-    s.innerHTML = `${stage('Proje görevleri')}<h2 class="big">Proje yürütücüsü görevleri dağıtıyor</h2>`;
-    const an = el('div','announce'); s.appendChild(an);
-    const say2 = (label, html, lead) => { an.className = 'announce enter' + (lead ? ' lead' : ''); an.innerHTML = `<span class="rlabel">${label}</span><span>${html}</span>`; };
-    const ul2 = el('ul','list'); const A = {};
-    const leadLi = el('li','lead', `<span class="who">Katılımcı ${S.seat.lead}</span><span class="what"><span class="lead-role">Proje yürütücüsü</span></span>`);
-    ul2.appendChild(leadLi);
-    [1,2,3,4,5,6].filter(i => i !== S.seat.lead).forEach(i => {
-      const m = i === S.seat.you ? 'you' : OTHERS.find(o => S.seat[o] === i);
-      const li = el('li', m === 'you' ? 'me' : '', `<span class="who">${nm(m)}</span><span class="what dim">Bekliyor</span>`);
-      A[m] = li.querySelector('.what'); ul2.appendChild(li);
-    });
-    s.appendChild(ul2);
-    hint('Proje yürütücüsü görevleri belirliyor…');
-    for (const m of S.order){
-      const to = m === 'you' ? `Katılımcı ${S.seat.you}${SUF[S.seat.you].dat} (sana)` : form(m, 'dat');
-      say2('Proje yürütücüsü', 'Görev vermek istediği kişiyi seçiyor…', true);
-      await sleep(2200);
-      A[m].innerHTML = '<span class="typing"><i></i><i></i><i></i></span>';
-      say2('Proje yürütücüsü', `<strong>${to}</strong> görev veriyor…`, true);
-      await sleep(m === 'you' ? 3400 : 2200);
-      const task = m === 'you' ? BENIM_GOREVIM : GOREV[m];
-      A[m].textContent = task; A[m].classList.remove('dim');
-      say2('Bildirim', `Proje yürütücüsü, <strong>${to}</strong> şu görevi verdi: <strong>${esc(task)}</strong>`);
-      await sleep(2200);
-    }
-    say2('Bildirim', 'Proje yürütücüsü bütün görevleri dağıttı.');
-    hint('Bütün görevler dağıtıldı.');
-    await sleep(2600);
-
-    // the warm-up vote: everyone answers, nothing is at stake
-    s = newScene();
-    s.innerHTML = `${stage('Memnuniyet')}<h2 class="big">Proje yürütücüsü soruyor: Görevinizden memnun musunuz?</h2>
-      <p class="sub">Her üyenin görevi aşağıda. Senin görevin mavi çerçeveli satırda.</p>`;
-    const slot = el('div','slot'); s.appendChild(slot);
-    const {ul, rows} = teamTable(true); s.appendChild(ul);
-    const voters = S.order.filter(m => m !== 'you'), slow = pick(voters);
-    const {rec} = await oylama({uyeler: voters.map(m => ({kim:m, sure: m === slow ? rnd(9, 12) : rnd(2, 6)})),
-      evetK:'Memnun', hayirK:'Memnun değil', evetB:'Memnunum', hayirB:'Memnun değilim', sorulabilir:false, gerekce:'', satirlar:rows, slot,
-      soru:`Görevinden (<strong>${esc(BENIM_GOREVIM)}</strong>) memnun musun?`, hedef:null});
-    R.memnuniyet = {cevap: rec.son === 'onay' ? 'memnun' : rec.son === 'ret' ? 'memnun_degil' : 'sure', ms: rec.ilk_ms};
-    await sleep(1000);
+  function puanSatiri(d){
+    const p = Object.keys(d.yeni).filter(m => d.yeni[m].puan != null && d.yeni[m].puan !== S.plan[m].puan);
+    return p.length ? 'Katkı puanı · ' + p.map(m => `${m === 'lead' ? 'Yürütücü' : `Katılımcı ${S.seat[m]}`}: ${S.plan[m].puan} → ${d.yeni[m].puan}`).join(' · ') : 'Katkı puanları değişmiyor.';
   }
-
-  /* ---------- the meeting: ten decisions on one screen ---------- */
+  const sonucYaz = (evet, hayir, bos) => {
+    const sayim = [`${evet} onay`, hayir ? `${hayir} ret` : '', bos ? `${bos} oy süre dolduğu için sayılmadı` : ''].filter(Boolean).join(', ');
+    return `${hayir >= 3 ? 'Uygulanmadı' : 'Uygulandı'} (${sayim}). Durdurmak için en az 3 ret gerekir.`;
+  };
+  function baglantiKopar(set, m){
+    let bitti = false, koptu = false;
+    sleep(rnd(2000, 5000)).then(() => { if (!bitti){ koptu = true; set(m, 'wait', 'Bağlantı koptu'); } }).catch(() => {});
+    return () => {
+      bitti = true;
+      if (koptu) sleep(rnd(1000, 2000)).then(() => { set(m, 'wait', 'Yeniden bağlandı'); return sleep(1500); }).then(() => set(m, 'wait', '')).catch(() => {});
+    };
+  }
   async function meeting(){
     const n = adlar();
-    let s = newScene('center');
-    s.innerHTML = `${stage('Toplantı')}<div class="notice"><span class="rlabel">Proje yürütücüsü</span>
-      <h2 class="big">Proje kararları</h2>
-      <p class="sub">${LEAD()} proje için <strong>10 karar</strong> alacak. Her kararı ekip oylayacak.</p></div>`;
-    await next(10);
-
-    const STAGE = 'Proje kararları';
-    s = newScene();
-    s.innerHTML = `<div id="stp">${stage(STAGE)}</div><h2 class="big">Ekibin görevleri</h2>`;
+    const STAGE = 'Toplantı';
+    let s = newScene();
+    s.innerHTML = `<div id="stp">${stage(STAGE)}</div><h2 class="big">Proje planı</h2>`;
     const stp = s.querySelector('#stp');
     const box = el('div','announce'); s.appendChild(box);
     const tell = (label, html, lead) => { box.className = 'announce enter' + (lead ? ' lead' : ''); box.innerHTML = `<span class="rlabel">${label}</span><span>${html}</span>`; };
     const slot = el('div','slot'); s.appendChild(slot);
     const {ul, rows: TR} = teamTable(true); s.appendChild(ul);
-    const redraw = () => ['lead', ...S.order].forEach(m => { TR[m].what.innerHTML = rowHtml(m); });
+    const notlar = notKutusu(); s.appendChild(notlar.node);
+    s.appendChild(kuralKutusu());
+    const setSt = (m, cls, txt) => { TR[m].st.className = 'st ' + cls; TR[m].st.textContent = txt; };
+    tell('Toplantı başladı', `${LEAD()} plandaki görevlerde ve puanlarda değişiklik yapacak. Her değişiklik ekibin oyuna sunulacak.`);
 
-    for (let i = 0; i < S.sira.length; i++){
-      const no = i + 1, kod = S.sira[i], K = KARAR[kod];
-      const itiraz = S.kosul === 'tek-itirazci' && K.blok === 2 && !K.adil;
-      stp.innerHTML = stage(STAGE, `Karar ${no} / ${S.sira.length}`);
-      S.order.forEach(m => { TR[m].li.classList.remove('target'); TR[m].st.className = 'st wait'; TR[m].st.textContent = ''; });
-      slot.innerHTML = '';
-      hint('Bekleniyor…');
-      tell(`Karar ${no} · Proje yürütücüsü`, 'Yeni bir karar yazıyor…', true);
-      await sleep(rnd(2600, 3600));
-      TR[K.hedef].li.classList.add('target');
-      tell(`Karar ${no} · Proje yürütücüsü`, esc(K.metin(n)), true);
-      setTimeout(() => { try { TR[K.hedef].li.scrollIntoView({block:'nearest', behavior:'smooth'}); } catch(e){} }, 50);
-      await sleep(5500);
-      tell(`Oylama · Karar ${no}`, `${esc(K.metin(n))}<br><strong>Bu karar onaylansın mı?</strong> ${nm(K.hedef)} bu kararda oy kullanmıyor.`);
+    let onceki = null;
+    for (let i = 0; i < DEGISIKLIK.length; i++){
+      const no = i + 1, d = DEGISIKLIK[i];
+      const itiraz = S.kosul === 'tek-itirazci' && d.blok === 2 && !d.adil;
+      await sleep(rnd(...ZAMAN.sonucSonra));
+      ['lead', ...S.order].forEach(m => { TR[m].li.classList.remove('target', 'target-ok'); setSt(m, 'wait', ''); });
+      setSt('lead', 'edit', 'Düzenliyor');
+      hint('Proje yürütücüsü planı düzenliyor…');
+      await sleep(rnd(...d.hazirlik));
+      stp.innerHTML = stage(STAGE, `Değişiklik ${no}`);
+      setSt('lead', 'wait', '');
+      TR[d.hedef].li.classList.add(d.adil ? 'target-ok' : 'target');
+      Object.keys(d.yeni).forEach(m => { TR[m].what.innerHTML = rowHtml(m, d.yeni[m]); });
+      if (d.hocaNotu) notlar.ciz(d.hocaNotu(n));
+      const kart = d.kart(n).map(esc).join('<br>') + `<br><span class="puan">${esc(puanSatiri(d))}</span>`;
+      tell(`Oylanan · Değişiklik ${no}`, `${kart}<br><span class="dim">${nm(d.hedef)} bu oylamaya katılmıyor (değişiklik doğrudan onu etkiliyor).</span>`, true);
+      const kartT = now();
+      setTimeout(() => { try { TR[d.hedef].li.scrollIntoView({block:'nearest', behavior:'smooth'}); } catch(e){} }, 50);
       s.scrollTop = 0;
-      await sleep(2400);
 
-      // who answers, and how: the same in both conditions except M's vote on the unfair decisions of block 2.
-      // At decision 2 one member asks for the reason first; at decision 5 (the first one M objects to) M asks before voting.
-      const voters = S.order.filter(m => m !== 'you' && m !== K.hedef);
-      const soran = no === 2 ? pick(voters.filter(m => m !== 'M')) : no === 5 ? 'M' : null;
-      const slow = pick(voters.filter(m => m !== soran));
-      const uyeler = voters.map(m => ({kim:m, sure: m === slow ? rnd(9, 12) : rnd(2, 6), sor: m === soran, ret: m === 'M' && itiraz}));
-      const {rec, evet, hayir} = await oylama({uyeler, evetK:'Onayladı', hayirK:'Reddetti', evetB:'Onayla', hayirB:'Reddet', sorulabilir:true,
-        gerekce:K.gerekce, satirlar:TR, slot, soru:esc(K.kisa(n)), hedef:K.hedef});
-      R.kararlar.push({sira:no, kod, ...rec, muhalif_sirasi: voters.indexOf('M') + 1});
+      const sira = S.order.filter(m => m !== d.hedef), bots = sira.filter(m => m !== 'you');
+      const digerleri = bots.filter(m => m !== 'M');
+      const kirgin = onceki && digerleri.includes(onceki) ? onceki : null;
+      const duraksayan = d.oy.duraksayan && digerleri.includes(d.oy.duraksayan) && d.oy.duraksayan !== kirgin ? d.oy.duraksayan : null;
+      const yavaslar = shuffle(digerleri.filter(m => m !== kirgin && m !== duraksayan)).slice(0, d.oy.yavas || 0);
+      const tur = Object.fromEntries(bots.map(m => [m, {tip: m === kirgin ? 'kirgin' : m === duraksayan ? 'duraksar' : yavaslar.includes(m) ? 'yavas' : 'normal',
+        ret: m === 'M' && itiraz}]));
+      const kopuk = d.kopma ? baglantiKopar(setSt, d.hedef) : null;
+      const {rec, evet, hayir, bos} = await oylama({sira, tur, gerekce:d.gerekce, satirlar:TR, slot,
+        soru:`Değişiklik ${no}: ${esc(d.kisa(n))}`, hedef:d.hedef, hedefSorar:!!d.oy.hedefSorar, kartT});
+      R.kararlar.push({sira:no, kod:d.kod, ...rec, muhalif_sirasi: bots.indexOf('M') + 1});
 
-      // the lead decides in the end: the decision is applied whatever the votes
-      S.notes[K.hedef].push({t:K.not, adil:K.adil});
-      if (K.lider) S.leadTasks.push(K.lider);
-      redraw();
+      Object.keys(d.yeni).forEach(m => {
+        const y = d.yeni[m], p = S.plan[m];
+        if (y.gorev) p.gorev = y.gorev.slice();
+        if (y.puan != null) p.puan = y.puan;
+        TR[m].what.innerHTML = rowHtml(m);
+      });
+      if (d.hocaNotu) S.notlar.push(d.hocaNotu(n));
+      notlar.ciz();
       slot.innerHTML = '';
-      tell('Karar uygulandı', `${evet} onay${hayir ? `, ${hayir} ret` : ''}. Proje yürütücüsü kararı uyguladı.`);
+      tell(`Sonuç · Değişiklik ${no}`, `${esc(sonucYaz(evet, hayir, bos))} Plan güncellendi.`);
+      if (kopuk) kopuk();
       s.scrollTop = 0;
-      await next(6);
+      onceki = d.kirgin ? d.hedef : null;
     }
+    hint('');
+    await sleep(ZAMAN.bitis);
 
     s = newScene();
     s.innerHTML = `${stage(STAGE)}<h2 class="big">Toplantı bitti</h2>
-      <p class="sub">Proje yürütücüsü toplantıyı kapattı. Ekibin son durumu aşağıda.</p>`;
+      <p class="sub">Proje yürütücüsü toplantıyı kapattı. Planın son hali ve hocaya bildirilecek notlar aşağıda. Sırada 7 kısa soru ekranı var; bunları ekibin görmüyor.</p>`;
     s.appendChild(teamTable(false).ul);
-    await next(12);
+    s.appendChild(notKutusu().node);
+    await next(5);
   }
 
-  /* ---------- questionnaire pieces ---------- */
-  // a page of questions with one button at the bottom that unlocks once every question has an answer
   function sayfa(head, kur, cta = 'Devam'){
     return new Promise(res => {
       const s = newScene();
@@ -721,8 +785,8 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
       go.onclick = () => res(deger());
     });
   }
-  const baslik = (adim, title, sub) => `${stage('Toplantı sonrası', adim)}<span class="tag">Bu ekranı ekibin görmüyor</span><h2 class="big">${title}</h2>${sub ? `<p class="sub">${sub}</p>` : ''}`;
-  // a group of buttons where exactly one stays pressed
+  const TOPLAM = 7;   // question screens, for the "3 / 7" in the corner
+  const baslik = (adim, title, sub) => `${stage('Toplantı sonrası', `${adim} / ${TOPLAM}`)}<span class="tag">Bu ekranı ekibin görmüyor</span><h2 class="big">${title}</h2>${sub ? `<p class="sub">${sub}</p>` : ''}`;
   function tekSecim(kap, cls, opts, onPick){
     const w = el('div', cls);
     opts.forEach(([id, label]) => {
@@ -752,47 +816,16 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
       return () => v;
     });
   }
-  function gizliOy(){
-    const n = adlar(), liste = S.sira.filter(k => GIZLI.includes(k));
-    return sayfa(baslik('1', 'Kimse görmeyecek olsaydı', 'Toplantının ikinci yarısındaki bu kararları yalnızca sen oylasaydın ve oyunu kimse görmeyecek olsaydı ne derdin?'), (s, ok) => {
+  function gizliOy(adim){
+    const n = adlar();
+    return sayfa(baslik(adim, 'Kimse görmeyecek olsaydı', 'Bu değişiklikleri yalnızca sen oylasaydın ve oyunu kimse görmeyecek olsaydı ne derdin?'), (s, ok) => {
       const v = {};
-      liste.forEach(k => {
-        const r = el('div','row', `<span class="q">${esc(KARAR[k].kisa(n))}</span>`); r.dataset.q = k;
-        tekSecim(r, 'pair', [['onay','Onaylardım'], ['ret','Reddederdim']], x => { v[k] = x; ok(Object.keys(v).length === liste.length); });
+      DEGISIKLIK.forEach((d, i) => {
+        const r = el('div','row', `<span class="q">${i + 1}. ${esc(d.kisa(n))}</span>`); r.dataset.q = d.kod;
+        tekSecim(r, 'pair', [['onay','Onaylardım'], ['ret','Reddederdim']], x => { v[d.kod] = x; ok(Object.keys(v).length === DEGISIKLIK.length); });
         s.appendChild(r);
       });
       return () => v;
-    });
-  }
-  function sorumluluk(){
-    return sayfa(baslik('7', 'Sorumluluk kimdeydi?', 'Toplantıda alınan kararların sorumluluğunu 100 puan üzerinden paylaştır. Toplam 100 olmalı.'), (s, ok) => {
-      const v = {lider:0, ben:0, ekip:0};
-      const tot = el('div','total');
-      const draw = () => { const t = v.lider + v.ben + v.ekip; tot.textContent = `Toplam: ${t} / 100`; tot.classList.toggle('ok', t === 100); ok(t === 100); };
-      [['lider', `Proje yürütücüsü (Katılımcı ${S.seat.lead})`], ['ben', 'Ben'], ['ekip', 'Ekibin geri kalanı']].forEach(([id, label]) => {
-        const r = el('div','step', `<span>${esc(label)}</span><button type="button" aria-label="${esc(label)} azalt">−</button><output>0</output><button type="button" aria-label="${esc(label)} artır">+</button>`);
-        r.dataset.q = id;
-        const [minus, plus] = r.querySelectorAll('button'), out = r.querySelector('output');
-        const set = x => { v[id] = Math.max(0, Math.min(100, x)); out.textContent = v[id]; draw(); };
-        minus.onclick = () => set(v[id] - 10); plus.onclick = () => set(v[id] + 10);
-        s.appendChild(r);
-      });
-      s.appendChild(tot); draw();
-      return () => ({...v});
-    });
-  }
-  const NEDEN = [['sorun','Sorun çıkaran biri gibi görünmek istemedim'], ['iliski','Ekiple aram bozulsun istemedim'], ['etkisiz','Reddetsem de bir şey değişmezdi'],
-    ['cekinme','Yürütücüden çekindim'], ['makul','Karar bana makul geldi'], ['diger','Başka bir neden']];
-  function nedenler(){
-    return sayfa(baslik('8', 'Neden onayladın?', 'Haksız bulunabilecek kararlardan en az birini onayladın. Bunun nedenleri nelerdi? Birden fazla seçebilirsin.'), (s, ok) => {
-      const v = new Set(); const w = el('div','checks');
-      NEDEN.forEach(([id, label]) => {
-        const b = el('button', null, esc(label)); b.type = 'button'; b.setAttribute('aria-pressed','false'); b.dataset.v = id;
-        b.onclick = () => { v.has(id) ? v.delete(id) : v.add(id); b.setAttribute('aria-pressed', String(v.has(id))); ok(v.size > 0); };
-        w.appendChild(b);
-      });
-      s.appendChild(w);
-      return () => NEDEN.map(x => x[0]).filter(x => v.has(x));
     });
   }
   function acikUclu(adim, title, soru){
@@ -802,17 +835,19 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
       return () => it.querySelector('textarea').value.trim();
     });
   }
-  const UC = [['evet','Evet'], ['hayir','Hayır'], ['emin_degil','Emin değilim']];
-  function secim(adim, title, soru, opts){
-    return sayfa(baslik(adim, title), (s, ok) => {
-      let v = null; const it = el('div','item', `<span class="q">${soru}</span>`); it.dataset.q = 'secim';
-      tekSecim(it, 'checks', opts, x => { v = x; ok(true); });
-      s.appendChild(it);
-      return () => v;
+  function tuhafSoru(adim){
+    return sayfa(baslik(adim, 'Beklenmedik bir şey'), (s, ok) => {
+      let v = null;
+      const it = el('div','item', '<span class="q">Toplantıda tuhaf ya da beklenmedik bir şey oldu mu?</span>'); it.dataset.q = 'tuhaf';
+      const ne = el('div','item', '<label class="q" for="acik">Ne oldu? Kısaca yaz.</label><textarea id="acik" maxlength="300"></textarea><span class="sub">İstersen boş bırakabilirsin.</span>');
+      ne.hidden = true;
+      tekSecim(it, 'pair', [['evet','Evet'], ['hayir','Hayır']], x => { v = x; ne.hidden = x !== 'evet'; ok(true); });
+      s.append(it, ne);
+      return () => ({tuhaf: v === 'evet', tuhaf_ne: v === 'evet' ? ne.querySelector('textarea').value.trim() : ''});
     });
   }
   function inanc(adim){
-    return sayfa(baslik(adim, 'Ekip arkadaşların', 'Kaydırıcıyı en iyi tahminine getir.'), (s, ok) => {
+    return sayfa(baslik(adim, 'Ekip arkadaşların gerçek miydi?', 'Kaydırıcıyı en iyi tahminine getir.'), (s, ok) => {
       let v = null;
       const it = el('div','item range', `<label class="q" for="inanc">Ekipteki diğer katılımcıların gerçek kişiler olduğuna ne kadar inandın?</label>
         <div class="rangeval unset" aria-live="polite">Kaydırıcıyı hareket ettir</div>
@@ -825,114 +860,134 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
       return () => v;
     });
   }
-  async function supheHunisi(adim0){
-    let a = adim0;
-    const st = () => String(a++);
-    if (KISA){
-      const inanmak = await inanc(st());
-      const duydu = await secim(st(), 'Son soru', 'Bu çalışmayı ya da benzer bir sınıf gösterimini daha önce duymuş muydun?', UC);
-      return {amac:null, tuhaf:null, tuhaf_ne:null, inanc:inanmak, duydu, milgram:null};
-    }
-    const amac = await acikUclu(st(), 'Çalışma hakkında', 'Sence bu çalışma neyi inceliyordu?');
-    const tuhaf = await secim(st(), 'Çalışma hakkında', 'Toplantıda tuhaf ya da beklenmedik bir şey oldu mu?', [['evet','Evet'], ['hayir','Hayır']]);
-    const tuhafNe = tuhaf === 'evet' ? await acikUclu(String(a - 1), 'Çalışma hakkında', 'Ne oldu? Kısaca yaz.') : '';
-    const inanmak = await inanc(st());
-    const duydu = await secim(st(), 'Çalışma hakkında', 'Bu çalışmayı ya da benzer bir sınıf gösterimini daha önce duymuş muydun?', UC);
-    const milgram = await secim(st(), 'Çalışma hakkında', 'Milgram ya da Asch deneylerini bir derste gördün mü?', UC);
-    return {amac, tuhaf: tuhaf === 'evet', tuhaf_ne: tuhafNe, inanc: inanmak, duydu, milgram};
-  }
+  const UC = [['evet','Evet'], ['hayir','Hayır'], ['emin_degil','Emin değilim']];
   const DEMO = {
     yas:[['18-20','18–20'], ['21-23','21–23'], ['24-26','24–26'], ['27+','27 ve üstü'], ['belirtilmedi','Belirtmek istemiyorum']],
-    sinif:[['hazirlik','Hazırlık'], ['1','1. sınıf'], ['2','2. sınıf'], ['3','3. sınıf'], ['4+','4. sınıf ve üstü'], ['lisansustu','Lisansüstü']],
     bolum:[['muh_fen','Mühendislik ve Fen'], ['saglik','Tıp ve Sağlık'], ['sosyal','Sosyal ve Beşeri Bilimler'], ['isl_iktisat','İşletme ve İktisat'],
            ['hukuk','Hukuk'], ['sanat_iletisim','Sanat, Tasarım ve İletişim'], ['egitim','Eğitim'], ['diger','Diğer']]
   };
-  function demografi(adim){
-    return sayfa(baslik(adim, 'Son olarak', 'Bu bilgiler yalnızca toplu olarak raporlanır.'), (s, ok) => {
+  function sonSayfa(adim){
+    return sayfa(baslik(adim, 'Son olarak', 'Yaş ve bölüm yalnızca toplu olarak raporlanır.'), (s, ok) => {
       const v = {};
-      [['yas','Yaşın'], ['sinif','Sınıfın'], ['bolum','Bölümün hangi alanda?']].forEach(([id, q]) => {
+      const SORU = [['duydu', 'Bu çalışmayı ya da benzer bir sınıf gösterimini daha önce duymuş muydun?', UC],
+        ['milgram', 'Milgram ya da Asch deneylerini bir derste gördün mü?', UC],
+        ['konustu', 'Çalışma sırasında biriyle konuştun mu ya da başkasının ekranını gördün mü?', UC],
+        ['yas', 'Yaşın', DEMO.yas], ['bolum', 'Bölümün hangi alanda?', DEMO.bolum]];
+      SORU.forEach(([id, q, opts]) => {
         const it = el('div','item', `<span class="q">${q}</span>`); it.dataset.q = id;
-        tekSecim(it, 'seg', DEMO[id], x => { v[id] = x; ok(Object.keys(v).length === 3); });
+        tekSecim(it, 'seg', opts, x => { v[id] = x; ok(Object.keys(v).length === SORU.length); });
         s.appendChild(it);
       });
       return () => v;
     }, 'Gönder');
   }
 
-  /* ---------- after the meeting ---------- */
   async function anket(){
-    const s = newScene('center');
-    s.innerHTML = `${stage('Toplantı sonrası')}<h2 class="big">Birkaç kısa soru</h2>
-      <p class="sub">Bu ekranları ekibin görmüyor. Doğru ya da yanlış cevap yok; ilk aklına geleni seç.</p>`;
-    await next(8);
-    const retSoru = 'Toplantının ikinci yarısında (5. karardan sonra) senin dışında kaç üye en az bir kez <strong>Reddet</strong> oyu verdi?';
-    if (KISA){
-      R.kontrol = {ret_eden: await sayiSoru('1', 'Toplantıyı hatırla', retSoru)};
-      R.suphe = await supheHunisi(2);
-      return;
-    }
-    R.gizli = await gizliOy();
-    const retEden = await sayiSoru('2', 'Toplantıyı hatırla', retSoru);
-    R.kontrol = {ret_eden: retEden, ...await likert('3', 'Toplantı nasıldı?', [
-      ['hemfikir', 'Ekip üyeleri kararlarda hemfikirdi.'],
-      ['adil', 'Yürütücünün kararları adildi.'],
-      ['gorunur', 'Oylarımın ekipçe görüldüğünü düşündüm.'],
-      ['saygili', 'Yürütücü üyelere saygılı davrandı.']])};
-    const a1 = await likert('4', 'Oy verirken', [
-      ['emin', 'Kararların adil olup olmadığı konusundaki yargımdan emindim.'],
+    let a = 1; const st = () => String(a++);
+    R.gizli = await gizliOy(st());
+    const amac = await acikUclu(st(), 'Çalışmanın konusu', 'Sence bu çalışma neyi inceliyordu?');
+    const {tuhaf, tuhaf_ne} = await tuhafSoru(st());
+    const retEden = await sayiSoru(st(), 'Toplantıyı hatırla', 'Toplantıda senin dışında kaç üye en az bir kez <strong>Reddet</strong> oyu verdi?');
+    R.kontrol = {ret_eden: retEden, ...await likert(st(), 'Toplantı nasıldı?', [
+      ['hemfikir', 'Ekip üyeleri oylamalarda hemfikirdi.'],
+      ['adil', 'Yürütücünün yaptığı değişiklikler adildi.'],
       ['sosyal_bedel', 'Reddetseydim ekipte sorun çıkaran biri gibi görünürdüm.'],
-      ['guvenli', 'Bu ekipte itiraz etmek güvenliydi.'],
-      ['etkililik', 'Reddetmem bir şeyi değiştirirdi.']]);
-    const icten = await sayiSoru('5', 'Ekip arkadaşların', 'Sence diğer 4 üyeden kaçı, kararların çoğuna içten içe karşıydı?');
-    const a2 = await likert('6', 'Yürütücü ve ekip', [
-      ['yetkili', 'Yürütücü bu kararları almaya yetkiliydi.'],
-      ['uymak', 'Yürütücünün kararlarına uymak gerekirdi.'],
-      ['lider_ozd', 'Kendimi yürütücüyle aynı tarafta hissettim.'],
-      ['ekip_ozd', 'Kendimi ekibin bir parçası gibi hissettim.'],
-      ['rahatsiz', 'Toplantı sırasında rahatsız oldum.']]);
-    R.aracilar = {...a1, icten_karsi: icten, ...a2};
-    R.sorumluluk = await sorumluluk();
-    const onayladi = R.kararlar.some(k => !KARAR[k.kod].adil && (k.ilk === 'onay' || k.son === 'onay'));
-    R.nedenler = onayladi ? await nedenler() : null;
-    R.suphe = await supheHunisi(9);
-    R.demografi = await demografi('14');
+      ['etkililik', 'Reddetmem bir şeyi değiştirirdi.'],
+      ['rahatsiz', 'Toplantı sırasında rahatsız oldum.']])};
+    const inanmak = await inanc(st());
+    const son = await sonSayfa(st());
+    R.suphe = {amac, tuhaf, tuhaf_ne, inanc: inanmak, duydu: son.duydu, milgram: son.milgram, konustu: son.konustu};
+    R.demografi = {yas: son.yas, bolum: son.bolum};
   }
 
-  /* ---------- end: save, then the debriefing ---------- */
+  const ACIKLAMA = `<div class="announce"><span class="rlabel">Başta söylemediklerimiz</span>
+      <ol class="rules"><li><strong>Ekipteki diğer 5 katılımcı gerçek değildi.</strong> Yürütücünün değişiklikleri ve cevapları da, üyelerin oyları da önceden hazırlanmıştı.</li>
+      <li><strong>Hocaya hiçbir not gitmedi.</strong> Kimsenin notu etkilenmedi; “katkısı yok” diye bildirilen biri de yok.</li></ol></div>
+    <p class="sub"><strong>Neden saklandı?</strong> Bunu baştan söyleseydik, insanların böyle bir durumda gerçekte nasıl davrandığını göremezdik.</p>
+    <p class="sub"><strong>Amaç:</strong> Bu çalışma, ekipte tek bir kişinin itiraz etmesinin haksız değişikliklere verilen oyları nasıl etkilediğini inceliyor. Katılımcıların bir kısmı itiraz eden bir üye gördü, bir kısmı görmedi.</p>
+    <p class="sub"><strong>Hangi oyu verdiysen olağan.</strong> Böyle durumlarda pek çok kişi haksız değişiklikleri onaylar; bu bir kişilik özelliği değil, ekipteki baskının ne kadar güçlü olabileceğini gösterir.</p>
+    <p class="sub"><strong>Lütfen ayrıntıları kimseyle paylaşma.</strong> Henüz katılacak kişiler var; önceden bilenler sonuçları değiştirir.</p>`;
+  const KIME = () => ILETISIM ? esc(ILETISIM) : 'oturumu yürüten kişiye';
+  const DESTEK = () => `<p class="sub">Soruların için ${KIME()} başvurabilirsin. Bu çalışma seni rahatsız ettiyse üniversitenin psikolojik danışma birimine de başvurabilirsin.</p>`;
+
   function bitir(){
     R.bitis = new Date().toISOString();
+    const sn = (a, b) => Math.round((b - a) * HIZ / 1000);
+    R.sure_sn = {giris: sn(Z.giris, Z.toplanti), toplanti: sn(Z.toplanti, Z.anket), anket: sn(Z.anket, now())};
+    if (gizliBas != null){ R.gizli_sn += (now() - gizliBas) * HIZ / 1000; gizliBas = null; }
+    R.gizli_sn = Math.round(R.gizli_sn);
     window.__kayit = R;
-    const s = newScene(TEST ? '' : (KISA ? 'center' : ''));
+    ui.alt.querySelector('#cik') && ui.alt.querySelector('#cik').remove();
     const save = el('p', 'save', SERVER ? 'Cevapların gönderiliyor…' : 'Önizleme: bu sayfada cevaplar kaydedilmez.');
     if (SERVER) send(R, TEST, save);
-    const kod = `<span class="rlabel">Kayıt kodun</span><span class="code" id="kod">${R.kayit_id}</span>`;
-    if (KISA){
-      s.innerHTML = `<h2 class="big">Teşekkürler</h2><p class="sub"><strong>Telefonunu bırak ve sunucuyu dinle.</strong></p>${kod}
-        <p class="sub">Bu kodu yalnızca sen görüyorsun. Cevapların bu kodla, isimsiz olarak kaydedilir.</p>`;
-    } else {
-      s.innerHTML = `${stage('Açıklama')}<h2 class="big">Teşekkürler. Şimdi çalışmanın gerçek amacını açıklıyoruz.</h2>
-        <div class="announce"><span class="rlabel">Başta söylemediklerimiz</span>
-          <ol class="rules"><li><strong>Ekipteki diğer 5 katılımcı gerçek değildi.</strong> Yürütücünün kararları ve üyelerin oyları önceden programlanmıştı.</li>
-          <li><strong>Proje de gerçek değildi.</strong> Toplantıdaki kararlar kimseyi etkilemedi.</li></ol></div>
-        <p class="sub">Bu çalışma, ekipte tek bir kişinin itiraz etmesinin haksız kararlara verilen oyları nasıl etkilediğini inceliyor. Katılımcıların bir kısmı itiraz eden bir üye gördü, bir kısmı görmedi.</p>
-        <p class="sub">Böyle durumlarda insanların çoğu en az bir haksız kararı onaylar. Bu bir zaaf değil; durumun ne kadar güçlü olabileceğini gösterir.</p>
-        <p class="sub"><strong>Lütfen ayrıntıları kimseyle paylaşma.</strong> Henüz katılacak kişiler var; önceden bilenler sonuçları değiştirir.</p>
-        ${kod}
-        <p class="sub">Cevaplarının silinmesini istersen bu kodu araştırmacıya ilet. ${ILETISIM ? esc(ILETISIM) : 'Araştırmacının iletişim bilgisi etik kurul onayından sonra buraya eklenecek.'}</p>`;
-    }
+    if (!KISA){ aciklama(save); return; }
+    const s = newScene('center');
+    s.innerHTML = `<h2 class="big">Teşekkürler</h2><p class="sub"><strong>Telefonunu bırak ve sunucuyu dinle.</strong> Herkes bitirince çalışmayı birlikte konuşacağız.</p>
+      <span class="rlabel">Kayıt kodun</span><span class="code" id="kod">${R.kayit_id}</span>
+      <p class="sub">Bu kodu yalnızca sen görüyorsun. Cevapların bu kodla, isimsiz olarak kaydedilir.</p>
+      <label class="q" for="kodgir">Sunucu açıklamayı yaptıktan sonra bir kod söyleyecek. Yazılı açıklamayı o kodla açabilirsin:</label>
+      <input class="kodgir" id="kodgir" inputmode="numeric" autocomplete="off" maxlength="4">`;
     s.appendChild(save);
+    const uyar = el('p', 'sub', ''); s.appendChild(uyar);
+    const ac = el('button','primary','Açıklamayı aç'); ac.id = 'aciklama';
+    ui.actions.innerHTML = ''; ui.actions.appendChild(ac);
+    ac.onclick = () => {
+      if (s.querySelector('#kodgir').value.trim() === ACIKLAMA_KODU) aciklama(save);
+      else uyar.textContent = 'Kod doğru değil. Sunucunun söylemesini bekle.';
+    };
+  }
+
+  function aciklama(save){
+    izYaz(x => ({...x, aciklama: true}));
+    const t0 = now();
+    const s = newScene();
+    s.innerHTML = `${stage('Açıklama')}
+      <div class="notice"><span class="rlabel">Önce şunu oku</span><span class="sub">Çevrende hâlâ devam edenler olabilir. Ekranını kimseye gösterme ve bugün bu çalışmayı kimseyle konuşma.</span></div>
+      <h2 class="big">Teşekkürler. Çalışmanın gerçek amacı</h2>${ACIKLAMA}
+      <span class="rlabel">Kayıt kodun</span><span class="code" id="kod">${R.kayit_id}</span>
+      <p class="sub">Artık her şeyi bildiğine göre cevaplarının kullanılmasını istemiyorsan aşağıdaki düğmeye bas ya da bu kodu araştırmacıya ilet; cevapların analizden çıkarılır.</p>${DESTEK()}`;
+    s.appendChild(save);
+    const cek = el('button','restart','Cevaplarımın kullanılmasını istemiyorum'); cek.id = 'cekil';
+    let kurulu = null;
+    cek.onclick = () => {
+      if (!kurulu){ cek.textContent = 'Emin misin? Onaylamak için tekrar dokun'; kurulu = setTimeout(() => { kurulu = null; cek.textContent = 'Cevaplarımın kullanılmasını istemiyorum'; }, 5000); return; }
+      clearTimeout(kurulu); cek.disabled = true;
+      window.__cekil = true;
+      if (!SERVER){ cek.textContent = 'Önizleme: bu sayfada istek gönderilmez.'; return; }
+      cek.textContent = 'Gönderiliyor…';
+      sendEk({kayit_id:R.kayit_id, cekil:true}, TEST, ok => {
+        cek.textContent = ok ? 'Geri çekme isteğin kaydedildi. Cevapların analize alınmayacak.' : 'Bağlantı sorunu, tekrar deneniyor. Sayfayı kapatma; istersen kodunu araştırmacıya da ilet.';
+      });
+    };
+    const his = el('div','item', '<span class="q">Şu an nasıl hissediyorsun?</span>');
+    tekSecim(his, 'seg', [['1','Çok kötü'], ['2','Kötü'], ['3','Normal'], ['4','İyi'], ['5','Çok iyi']], x => {
+      his.querySelectorAll('button').forEach(b => b.disabled = true);
+      his.appendChild(el('p','sub', Number(x) <= 2 ? `Teşekkürler. Konuşmak istersen ${KIME()} ya da üniversitenin psikolojik danışma birimine başvurabilirsin.` : 'Teşekkürler.'));
+      if (SERVER) sendEk({kayit_id:R.kayit_id, his:Number(x), aciklama_sn:Math.round((now() - t0) * HIZ / 1000)}, TEST);
+      window.__his = Number(x);
+    });
+    s.appendChild(his);
+    s.appendChild(cek);
     if (TEST) ozetTablo(s);
+  }
+
+  function cikis(){
+    izYaz(x => ({...x, cikis: true}));
+    ui.alt.innerHTML = '';
+    const s = newScene();
+    s.innerHTML = `${stage('Çıkış')}<h2 class="big">Çalışmadan çıktın</h2><p class="sub">Cevapların kaydedilmedi. Ayrılmadan önce bilmen gerekenler:</p>${ACIKLAMA}${DESTEK()}`;
   }
 
   function ozetTablo(s){
     const L = {onay:'Onay', ret:'Ret', gerekce:'Gerekçe', sure:'Süre doldu'};
     const say = (kodlar, alan) => R.kararlar.filter(k => kodlar.includes(k.kod) && k[alan] === 'onay').length;
-    const sat = R.kararlar.map(k => { const K = KARAR[k.kod];
-      return `<tr><td>${k.sira}. ${k.kod}</td><td>${K.adil ? 'adil' : K.duzey}${S.kosul === 'tek-itirazci' && K.blok === 2 && !K.adil ? ' · itiraz' : ''}</td>
+    const sat = R.kararlar.map(k => { const d = DEGISIKLIK.find(x => x.kod === k.kod);
+      return `<tr><td>${k.sira}. ${k.kod}</td><td>${d.adil ? 'adil' : d.duzey}${S.kosul === 'tek-itirazci' && d.blok === 2 && !d.adil ? ' · itiraz' : ''}</td>
         <td>${L[k.ilk]}${k.ilk_ms != null ? ` (${k.ilk_ms} ms)` : ''}${k.ilk === 'gerekce' ? ` → ${L[k.son]}${k.yeniden_ms != null ? ` (${k.yeniden_ms} ms)` : ''}` : ''}</td></tr>`; }).join('');
     const w = el('div', null, `<span class="tag">Test sürümü · yalnızca test kayıtlarında görünür</span>
       <p class="sub">Koşul: <strong>${R.kosul === 'oybirligi' ? 'Oybirliği' : 'Tek itirazcı'}</strong> (${R.kosul_kaynagi === 'sunucu' ? 'sunucudan' : 'rastgele'}) ·
-        1. blok onay ${say(['K1','K2','K4'], 'ilk')}/3 · 2. blok onay ${say(GIZLI, 'ilk')}/5 · adil onay ${say(['K3','K7'], 'ilk')}/2</p>
+        1. blok onay ${say(BLOK1, 'ilk')}/2 · 2. blok onay ${say(GIZLI, 'ilk')}/4 · adil onay ${say(ADIL, 'ilk')}/1 ·
+        süre: giriş ${R.sure_sn.giris} sn, toplantı ${R.sure_sn.toplanti} sn, anket ${R.sure_sn.anket} sn</p>
       <div style="overflow-x:auto"><table class="sumtable"><thead><tr><th>Sıra</th><th>Tür</th><th>İlk tepki → son oy</th></tr></thead><tbody>${sat}</tbody></table></div>
       <span class="rlabel">Kayıt (JSON)</span><pre class="json">${esc(JSON.stringify(R, null, 2))}</pre>`);
     w.style.cssText = 'display:grid; gap:12px';
@@ -940,12 +995,9 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
     buttons([{id:'again', label:'Baştan dene', cls:'primary'}]).then(() => { gen++; intro().catch(() => {}); });
   }
 
-  /* ---------- sending the record ---------- */
-  // kept on the phone until the sheet confirms it, so a lost connection or a reload does not lose it
-  const PENDING = 'proje-ekibi-bekleyen-v3';
+  const PENDING = 'proje-ekibi-bekleyen-v5';
   const pending = () => { try { return JSON.parse(localStorage.getItem(PENDING) || '[]'); } catch(e){ return []; } };
   const keep = list => { try { localStorage.setItem(PENDING, JSON.stringify(list)); } catch(e){} };
-  // everyone finishes within seconds of each other: wait a random moment first, then retry with growing pauses
   function send(rec, test, line, attempt = 0){
     if (attempt === 0) keep(pending().filter(p => p.r.kayit_id !== rec.kayit_id).concat({r: rec, test}));
     const say = (cls, txt) => { if (line){ line.className = 'save ' + cls; line.textContent = txt; } };
@@ -954,7 +1006,6 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
       google.script.run
         .withSuccessHandler(() => { keep(pending().filter(p => p.r.kayit_id !== rec.kayit_id)); say('ok', 'Cevapların kaydedildi.'); })
         .withFailureHandler(e => {
-          // a record the server rejects as invalid will never be accepted: stop instead of retrying forever
           if (/geçersiz kayıt/.test(String((e && e.message) || e))){ keep(pending().filter(p => p.r.kayit_id !== rec.kayit_id)); say('no', 'Cevaplar kaydedilemedi. Lütfen sunucuya haber ver.'); return; }
           if (attempt >= 1) say('no', 'Bağlantı yavaş, tekrar deneniyor. Sayfayı kapatma.');
           send(rec, test, line, attempt + 1);
@@ -962,14 +1013,39 @@ pre.json{margin:0; background:var(--surface-2); border-radius:12px; padding:12px
         .kaydet(rec, test);
     }, wait);
   }
+  const EK = 'proje-ekibi-ek-v5';
+  const ekler = () => { try { return JSON.parse(localStorage.getItem(EK) || '[]'); } catch(e){ return []; } };
+  const ekSakla = list => { try { localStorage.setItem(EK, JSON.stringify(list)); } catch(e){} };
+  const ekAnahtar = e => e.kayit_id + (e.cekil ? ':cekil' : ':his');
+  function sendEk(ek, test, haber, attempt = 0){
+    if (attempt === 0) ekSakla(ekler().filter(p => ekAnahtar(p.e) !== ekAnahtar(ek)).concat({e: ek, test}));
+    setTimeout(() => {
+      google.script.run
+        .withSuccessHandler(() => { ekSakla(ekler().filter(p => ekAnahtar(p.e) !== ekAnahtar(ek))); if (haber) haber(true); })
+        .withFailureHandler(e => {
+          if (/geçersiz kayıt/.test(String((e && e.message) || e))){ ekSakla(ekler().filter(p => ekAnahtar(p.e) !== ekAnahtar(ek))); return; }
+          if (attempt === 1 && haber) haber(false);
+          sendEk(ek, test, haber, attempt + 1);
+        })
+        .kaydetEk(ek, test);
+    }, attempt ? Math.min(30000, 2000 * 2 ** attempt) : 0);
+  }
 
-  // Apps Script serves the page inside a frame, so the address is read through google.script.url
   function start(){
     if (!SERVER){ KISA = location.hash === '#kisa'; return intro(); }
     let begun = false;
-    const go = () => { if (begun) return; begun = true; intro(); pending().forEach(p => send(p.r, p.test, null)); };
-    try { google.script.url.getLocation(l => { const p = (l && l.parameter) || {}; TEST = p.test === '1'; KISA = p.kisa === '1'; go(); }); } catch(e){}
-    setTimeout(go, 2000);
+    const go = p => {
+      if (begun) return; begun = true;
+      TEST = p.test === '1'; KISA = p.kisa === '1';
+      intro();
+      pending().forEach(x => send(x.r, x.test, null));
+      ekler().forEach(x => sendEk(x.e, x.test, null));
+    };
+    try { google.script.url.getLocation(l => go((l && l.parameter) || {})); } catch(e){}
+    setTimeout(() => {
+      if (begun) return; begun = true;
+      app.innerHTML = '<main class="scene gutter center"><h2 class="big">Sayfa yüklenemedi</h2><p class="sub">Lütfen sayfayı yenile.</p></main>';
+    }, 10000);
   }
   start();
 })();
